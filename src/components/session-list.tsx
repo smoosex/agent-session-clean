@@ -25,14 +25,17 @@ export function SessionList(props: SessionListProps) {
     <box flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0} width={props.width ?? "39%"} minWidth={30} backgroundColor={colors.panel} border borderStyle="rounded" borderColor={props.store.focus() === "sessions" ? colors.accent : colors.border} focusedBorderColor={colors.accent} focused={props.store.focus() === "sessions"}>
       <text height={2} paddingX={1} fg={colors.accent} attributes={1}>[2] Sessions</text>
       <Show when={props.store.filteredSessions().length > 0} fallback={<EmptyState title="No sessions in this project" detail={props.store.searchQuery() ? "Try a different search." : "Try another project or press r to rescan."} />}>
-        <scrollbox ref={(element) => { scrollbox = element }} flexGrow={1} minHeight={0}>
+        <scrollbox ref={(element) => { scrollbox = element }} flexGrow={1} minHeight={0} contentOptions={{ gap: 1 }}>
           <For each={props.store.filteredSessions()}>{(session: SessionSummary) => {
             const selected = () => props.store.selectedSessionId() === session.id
             return (
-              <box id={`session-item-${session.id}`} height={3} paddingX={1} backgroundColor={selected() ? colors.selected : colors.panel}>
-                <text fg={selected() ? colors.text : colors.muted}>{selected() ? "▌ " : "  "}{session.title}</text>
-                <text fg={colors.muted}>  {formatRelativeTime(session.updatedAt)} · {formatBytes(session.sizeBytes)} · {session.messageCount} messages</text>
-                <text fg={session.warnings.length > 0 ? colors.warning : colors.muted}>{session.warnings.length > 0 ? `  ! ${session.warnings.length} parse warnings` : `  ${session.sessionId ?? "no session id"}`}</text>
+              <box id={`session-item-${session.id}`} height={3} flexDirection="row" backgroundColor={selected() ? colors.selected : colors.panel}>
+                <text width={1} height={3} fg={colors.text}>{selected() ? "▌\n▌\n▌" : " \n \n "}</text>
+                <box flexGrow={1} flexDirection="column" paddingLeft={2} paddingRight={1}>
+                  <text fg={selected() ? colors.text : colors.muted}>{session.title}</text>
+                  <text fg={colors.muted}>{formatRelativeTime(session.updatedAt)} · {formatBytes(session.sizeBytes)} · {session.messageCount} messages</text>
+                  <text fg={session.warnings.length > 0 ? colors.warning : colors.muted}>{session.warnings.length > 0 ? `! ${session.warnings.length} parse warnings` : session.sessionId ?? "no session id"}</text>
+                </box>
               </box>
             )
           }}</For>
