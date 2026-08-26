@@ -5,9 +5,9 @@
 - 产品名称：AGC（Agent Session Clean）
 - 当前版本：v0.1
 - 文档状态：首版开发设计
-- 首版 Agent：Pi
+- 首版 Agent：Pi、Codex
 - 首版能力：只读扫描与展示
-- 暂不包含：删除、归档、恢复、其他 Agent 适配器
+- 暂不包含：删除、归档、恢复、Claude Code 和 Antigravity 适配器
 - 技术栈：OpenTUI + SolidJS + TypeScript + Bun
 
 ## 2. 产品目标
@@ -18,8 +18,8 @@ AGC 用于集中查看本机不同 Agent 产生的 session，并按照项目组�
 
 ### 2.1 首版目标
 
-1. 启动后自动发现 Pi session 存储目录。
-2. 展示当前 Pi 下的所有项目。
+1. 启动后自动发现 Pi 和 Codex session 存储目录。
+2. 展示当前 Agent 下的所有项目。
 3. 展示选中项目下的所有 session。
 4. 展示选中 session 的详细元数据和内容摘要。
 5. 支持重新扫描、搜索、排序和键盘导航。
@@ -77,7 +77,7 @@ Agent  [ ● Pi ▾ ]
 |---|---|---|
 | Pi | 支持 | 可选择、可扫描 |
 | Claude Code | 未支持 | 显示 Coming soon，不可选择 |
-| Codex | 未支持 | 显示 Coming soon，不可选择 |
+| Codex | 支持 | 可选择、可扫描 |
 | Antigravity | 未支持 | 显示 Coming soon，不可选择 |
 
 未来新增 Agent 时，只新增适配器和注册项，不修改三栏布局。
@@ -221,7 +221,7 @@ interface AgentAdapter {
 }
 ```
 
-首版只实现 `PiAdapter`。其他 Agent 在注册表中声明为 `coming-soon`，不提供空的伪数据。
+首版实现 `PiAdapter` 和 `CodexAdapter`。Claude Code 和 Antigravity 在注册表中声明为 `coming-soon`，不提供空的伪数据。
 
 ### 4.3 状态模型
 
@@ -359,6 +359,18 @@ Pi session 使用 JSONL 保存多种记录，可能包含 model change、thinkin
 5. 仍无法确定时归入 `Unknown project`。
 
 项目 ID 不应只使用项目名称，因为不同目录可能存在同名项目。建议使用规范化绝对路径生成稳定 ID。
+
+## 5.7 Codex 适配器设计
+
+Codex 默认 session 根目录：
+
+```text
+~/.codex/sessions
+```
+
+如果设置了 `CODEX_HOME`，则使用 `$CODEX_HOME/sessions`。也支持 CLI 参数 `--codex-sessions-dir` 和环境变量 `AGC_CODEX_SESSIONS_DIR` 覆盖路径。
+
+Codex session 是按日期递归存储的 rollout JSONL 文件。首条 `session_meta` 记录提供 session ID、创建时间和 cwd；`turn_context` 提供模型信息；`event_msg` 和 `response_item` 提供消息摘要。扫描只读取 JSONL，不修改 Codex 的 SQLite 索引或其他本地状态。
 
 ## 6. 目录结构
 
@@ -517,7 +529,7 @@ Try another project or press r to rescan.
 
 ## 10. 测试计划
 
-### 10.1 Pi parser 单元测试
+### 10.1 Pi 和 Codex parser 单元测试
 
 - 正常 session header。
 - 缺失 cwd。
@@ -552,7 +564,7 @@ Try another project or press r to rescan.
 - 搜索结果为空时显示空状态。
 - 重新扫描后恢复已有选择。
 - 选中的 session 被外部删除后清空旧详情。
-- 选择不支持的 Agent 时保持 Pi 数据不变。
+- 选择不支持的 Agent 时保持当前 Agent 数据不变。
 
 ### 10.4 TUI 验收测试
 
@@ -566,8 +578,8 @@ Try another project or press r to rescan.
 ## 11. 首版验收标准
 
 1. 运行 `agc` 后可以进入 TUI。
-2. 顶部存在 Agent 选择器，Pi 可用，其他 Agent 明确显示为未支持。
-3. AGC 可以从默认目录读取 Pi session。
+2. 顶部存在 Agent 选择器，Pi 和 Codex 可用，其他 Agent 明确显示为未支持。
+3. AGC 可以从默认目录读取 Pi 和 Codex session。
 4. 左栏展示所有已识别项目及 session 数量。
 5. 选择项目后，中栏只展示该项目的 session。
 6. 选择 session 后，右栏展示其详细信息。
@@ -585,11 +597,12 @@ Try another project or press r to rescan.
 - 完成 renderer 启动、退出和尺寸监听。
 - 做出静态三栏布局。
 
-### M2：Pi 文件发现
+### M2：Pi 和 Codex 文件发现
 
 - 实现默认路径和路径覆盖参数。
 - 实现 JSONL 文件发现。
-- 实现 header 解析和项目分组。
+- 实现 Pi header 和 Codex `session_meta` 解析。
+- 实现项目分组。
 - 完成基础扫描测试。
 
 ### M3：主界面数据绑定
@@ -612,7 +625,7 @@ Try another project or press r to rescan.
 ### M5：首版验收
 
 - 完成 parser、scanner、store 和 TUI 测试。
-- 使用真实 Pi session 目录进行手动验收。
+- 使用真实 Pi 和 Codex session 目录进行手动验收。
 - 确认所有操作均为只读。
 - 发布 v0.1 展示版。
 

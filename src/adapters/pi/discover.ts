@@ -1,63 +1,11 @@
-import { lstat, readdir } from "node:fs/promises"
-import path from "node:path"
 import type { ScanIssue } from "../types"
+import { discoverJsonlFiles } from "../../services/discover-jsonl"
 
 export type DiscoveredPiFiles = {
   files: string[]
   issues: ScanIssue[]
 }
 
-export async function discoverPiFiles(rootPath: string, signal?: AbortSignal): Promise<DiscoveredPiFiles> {
-  const files: string[] = []
-  const issues: ScanIssue[] = []
-  const root = path.resolve(rootPath)
-
-  let rootStat
-  try {
-    rootStat = await lstat(root)
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
-    issues.push({ path: root, message: code === "ENOENT" ? "Pi session directory does not exist" : `Cannot access Pi session directory: ${error instanceof Error ? error.message : String(error)}`, severity: "error" })
-    return { files, issues }
-  }
-  if (!rootStat.isDirectory()) {
-    issues.push({ path: root, message: "Pi session path is not a directory", severity: "error" })
-    return { files, issues }
-  }
-
-  async function visit(directory: string): Promise<void> {
-    if (signal?.aborted) throw new DOMException("Scan aborted", "AbortError")
-    let entries
-    try {
-      entries = await readdir(directory, { withFileTypes: true })
-    } catch (error) {
-      issues.push({ path: directory, message: `Cannot read directory: ${error instanceof Error ? error.message : String(error)}`, severity: "error" })
-      return
-    }
-    for (const entry of entries) {
-      if (signal?.aborted) throw new DOMException("Scan aborted", "AbortError")
-      const entryPath = path.join(directory, entry.name)
-      if (entry.isSymbolicLink()) {
-        issues.push({ path: entryPath, message: "Skipped symbolic link", severity: "warning" })
-        continue
-      }
-      if (entry.isDirectory()) {
-        await visit(entryPath)
-        continue
-      }
-      if (!entry.isFile()) {
-        issues.push({ path: entryPath, message: "Skipped non-regular file", severity: "warning" })
-        continue
-      }
-      if (path.extname(entry.name).toLowerCase() !== ".jsonl") {
-        issues.push({ path: entryPath, message: "Skipped non-JSONL file", severity: "warning" })
-        continue
-      }
-      files.push(entryPath)
-    }
-  }
-
-  await visit(root)
-  files.sort()
-  return { files, issues }
+export function discoverPiFiles(rootPath: string, signal?: AbortSignal): Promise<DiscoveredPiFiles> {
+  return discoverJsonlFiles(rootPath, "Pi", signal)
 }

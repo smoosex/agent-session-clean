@@ -5,10 +5,11 @@ import { createAppStore } from "./store/app-store"
 
 type AppProps = {
   adapter: AgentAdapter
+  adapters?: ReadonlyMap<AgentAdapter["id"], AgentAdapter>
 }
 
 export function App(props: AppProps) {
-  const store = createAppStore(props.adapter)
+  const store = createAppStore(props.adapter, props.adapters)
   onMount(() => void store.scan())
   return <AppShell store={store} />
 }

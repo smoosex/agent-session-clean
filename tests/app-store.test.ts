@@ -17,24 +17,44 @@ const scanResult: AgentScanResult = {
   ],
 }
 
-function fakeAdapter(): AgentAdapter {
+function fakeAdapter(id: "pi" | "codex", result: AgentScanResult = scanResult): AgentAdapter {
   return {
-    id: "pi",
-    info: { id: "pi", label: "Pi", status: "available" },
+    id,
+    info: { id, label: id === "pi" ? "Pi" : "Codex", status: "available" },
     detect: async () => ({ available: true }),
-    scan: async () => scanResult,
+    scan: async () => result,
     loadDetail: async (session) => ({ ...session, warningCount: session.warnings.length }),
   }
 }
 
 describe("createAppStore", () => {
   test("selects the newest project and filters both panes", async () => {
-    const store = createAppStore(fakeAdapter())
+    const store = createAppStore(fakeAdapter("pi"))
     await store.scan()
     expect(store.selectedProjectId()).toBe("project:/work/app")
     expect(store.selectedSessionId()).toBe("session:new")
     store.setSearchQuery("docs")
     expect(store.filteredProjects().map((project) => project.id)).toEqual(["project:/work/site"])
     expect(store.filteredSessions()).toHaveLength(0)
+  })
+
+  test("switches between registered agents and rescans", async () => {
+    const codexResult: AgentScanResult = {
+      ...scanResult,
+      rootPath: "/tmp/codex-sessions",
+      projects: [{ ...scanResult.projects[0]!, id: "project:/work/codex", path: "/work/codex", displayPath: "/work/codex" }],
+      sessions: [{ ...scanResult.sessions[0]!, id: "session:codex", sessionId: "codex", projectId: "project:/work/codex", projectPath: "/work/codex" }],
+    }
+    const pi = fakeAdapter("pi")
+    const codex = fakeAdapter("codex", codexResult)
+    const store = createAppStore(pi, new Map([["pi", pi], ["codex", codex]]))
+
+    await store.scan()
+    store.setActiveAgent("codex")
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(store.activeAgentId()).toBe("codex")
+    expect(store.rootPath()).toBe("/tmp/codex-sessions")
+    expect(store.selectedSessionId()).toBe("session:codex")
   })
 })

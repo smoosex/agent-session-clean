@@ -76,7 +76,10 @@ export function AppShell(props: AppShellProps) {
       }
       if (key.name === "return" || key.name === "enter") {
         const agent = props.store.agents()[agentIndex()]
-        if (agent?.status === "available") props.store.setFocus("projects")
+        if (agent?.status === "available") {
+          props.store.setActiveAgent(agent.id)
+          props.store.setFocus("projects")
+        }
         setAgentOpen(false)
         return
       }
@@ -162,7 +165,7 @@ export function AppShell(props: AppShellProps) {
 
   return (
     <box width="100%" height="100%" flexDirection="column" backgroundColor={colors.background} position="relative" overflow="hidden">
-      <box height={searchOpen() ? 4 : 3} marginX={1} flexDirection="column" paddingX={1} backgroundColor={colors.panel} border borderStyle="rounded" borderColor={colors.border}>
+      <box height={searchOpen() ? 4 : 3} marginX={1} flexDirection="column" paddingX={1} backgroundColor={colors.panel} border borderStyle="rounded" borderColor={props.store.focus() === "agent" ? colors.accent : colors.border} position="relative" overflow="visible" zIndex={agentOpen() ? 100 : 0}>
         <box height={1} flexDirection="row" alignItems="center">
           <text width={31} fg={colors.text} attributes={1}>AGC · Agent Session Clean</text>
           <AgentSelector store={props.store} open={agentOpen()} selectedIndex={agentIndex()} />

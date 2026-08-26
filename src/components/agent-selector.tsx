@@ -11,13 +11,17 @@ type AgentSelectorProps = {
 
 export function AgentSelector(props: AgentSelectorProps) {
   const active = () => props.store.agents().find((agent) => agent.id === props.store.activeAgentId())
+  const optionLines = () => props.store.agents().map((agent) => `${agent.label}${agent.id === props.store.activeAgentId() ? " *" : ""}`)
+  const popupWidth = () => Math.max(1, ...optionLines().map((line) => line.length)) + 4
+  const popupHeight = () => Math.max(1, optionLines().length) + 2
+
   return (
     <box position="relative" width={28}>
       <text fg={colors.cyan}>Agent [ ● {active()?.label ?? "Pi"} ▾ ]</text>
       <Show when={props.open}>
-        <box position="absolute" top={1} left={0} width={30} height={6} backgroundColor={colors.panelAlt} border borderColor={colors.accent} zIndex={20} padding={1}>
+        <box position="absolute" top={1} left={0} width={popupWidth()} height={popupHeight()} backgroundColor={colors.panelAlt} paddingX={2} paddingY={1} zIndex={100}>
           <For each={props.store.agents()}>{(agent: AgentInfo, index) => (
-            <box backgroundColor={index() === props.selectedIndex ? colors.selected : colors.panelAlt}><text fg={index() === props.selectedIndex ? colors.text : colors.muted}>{index() === props.selectedIndex ? "▌ " : "  "}{agent.label} · {agent.status === "available" ? "ready" : "Coming soon"}</text></box>
+            <text bg={index() === props.selectedIndex ? colors.selected : colors.panel} fg={index() === props.selectedIndex ? colors.muted : colors.text}>{agent.label}{agent.id === props.store.activeAgentId() ? " *" : ""}</text>
           )}</For>
         </box>
       </Show>

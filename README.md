@@ -1,6 +1,6 @@
 # AGC
 
-AGC（Agent Session Clean）是一个只读的 Pi session 浏览器，用项目组织并查看本机 session。
+AGC（Agent Session Clean）是一个只读的 Pi 和 Codex session 浏览器，用项目组织并查看本机 session。
 
 ## 运行
 
@@ -15,6 +15,15 @@ bun run src/main.tsx
 bun run src/main.tsx --pi-sessions-dir /path/to/sessions
 AGC_PI_SESSIONS_DIR=/path/to/sessions bun run src/main.tsx
 ```
+
+覆盖 Codex rollout 目录：
+
+```bash
+bun run src/main.tsx --codex-sessions-dir /path/to/sessions
+AGC_CODEX_SESSIONS_DIR=/path/to/sessions bun run src/main.tsx
+```
+
+Codex 默认读取 `~/.codex/sessions`，也会根据 `CODEX_HOME` 读取 `$CODEX_HOME/sessions`。顶部 Agent 选择器可以在 Pi 和 Codex 之间切换。
 
 也可以使用 `agc` 命令：
 
@@ -34,7 +43,7 @@ agc
 - `?`：帮助
 - `q`：退出
 
-AGC 不删除、移动、修改 session 文件，也不会联网。
+AGC 不删除、移动、修改 session 文件，也不会联网。Pi 和 Codex 的扫描都只读取本地 JSONL 文件。
 
 ## 开发
 

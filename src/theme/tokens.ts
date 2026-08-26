@@ -11,5 +11,5 @@ export const colors = {
   cyan: RGBA.fromIndex(6),
   error: RGBA.fromIndex(1),
   warning: RGBA.fromIndex(3),
-  selected: RGBA.fromIndex(0),
+  selected: RGBA.fromIndex(4),
 } as const

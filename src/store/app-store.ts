@@ -1,5 +1,5 @@
 import { createEffect, createSignal, onCleanup } from "solid-js"
-import type { AgentInfo } from "../domain/agent"
+import type { AgentId, AgentInfo } from "../domain/agent"
 import type { ProjectSummary } from "../domain/project"
 import type { SessionDetail, SessionSummary } from "../domain/session"
 import type { AgentAdapter, ScanIssue, ScanStatus } from "../adapters/types"
@@ -35,9 +35,9 @@ function sortProjects(projects: ProjectSummary[], sort: SortMode): ProjectSummar
   })
 }
 
-export function createAppStore(adapter: AgentAdapter) {
-  const [agents] = createSignal<AgentInfo[]>(listAgents(adapter))
-  const [activeAgentId] = createSignal(adapter.id)
+export function createAppStore(adapter: AgentAdapter, adapters: ReadonlyMap<AgentId, AgentAdapter> = new Map<AgentId, AgentAdapter>([[adapter.id, adapter]])) {
+  const [agents] = createSignal<AgentInfo[]>(listAgents(adapters))
+  const [activeAgentId, setActiveAgentId] = createSignal<AgentId>(adapter.id)
   const [scanStatus, setScanStatus] = createSignal<ScanStatus>("idle")
   const [rootPath, setRootPath] = createSignal(adapter.info.detail ?? adapter.info.label)
   const [projects, setProjects] = createSignal<ProjectSummary[]>([])
@@ -56,6 +56,7 @@ export function createAppStore(adapter: AgentAdapter) {
   let scanVersion = 0
   let detailVersion = 0
   let scanController: AbortController | undefined
+  let activeAdapter = adapter
 
   const queryMatches = (value: string | undefined, query: string): boolean => Boolean(value && value.toLowerCase().includes(query))
 
@@ -103,8 +104,9 @@ export function createAppStore(adapter: AgentAdapter) {
     }
     setSessionDetail(undefined)
     setDetailLoading(true)
+    const adapterForDetail = activeAdapter
     try {
-      const detail = await adapter.loadDetail(session)
+      const detail = await adapterForDetail.loadDetail(session)
       if (version === detailVersion && selectedSessionId() === sessionId) setSessionDetail(detail)
     } catch (error) {
       if (version !== detailVersion || selectedSessionId() !== sessionId) return
@@ -155,7 +157,29 @@ export function createAppStore(adapter: AgentAdapter) {
     if (session) void loadDetail(session.id)
   }
 
+  function setActiveAgent(agentId: AgentId): void {
+    const nextAdapter = adapters.get(agentId)
+    if (!nextAdapter || nextAdapter.id === activeAgentId()) return
+    scanController?.abort()
+    scanVersion += 1
+    detailVersion += 1
+    activeAdapter = nextAdapter
+    setActiveAgentId(agentId)
+    setRootPath(nextAdapter.info.detail ?? nextAdapter.info.label)
+    setScanStatus("idle")
+    setProjects([])
+    setSessions([])
+    setIssues([])
+    setScannedFiles(0)
+    setFailedFiles(0)
+    setSelectedProjectId(undefined)
+    setSelectedSessionId(undefined)
+    setSessionDetail(undefined)
+    void scan()
+  }
+
   async function scan(): Promise<void> {
+    const adapterForScan = activeAdapter
     const version = ++scanVersion
     scanController?.abort()
     const controller = new AbortController()
@@ -164,7 +188,7 @@ export function createAppStore(adapter: AgentAdapter) {
     const previousSessionId = selectedSessionId()
     setScanStatus("scanning")
     try {
-      const result = await adapter.scan({ signal: controller.signal })
+      const result = await adapterForScan.scan({ signal: controller.signal })
       if (version !== scanVersion) return
       applyResult(result, previousProjectId, previousSessionId)
       setScanStatus(result.issues.some((issue) => issue.severity === "error") || (result.failedFiles > 0 && result.sessions.length === 0) ? "error" : "complete")
@@ -206,6 +230,7 @@ export function createAppStore(adapter: AgentAdapter) {
   return {
     agents,
     activeAgentId,
+    setActiveAgent,
     scanStatus,
     rootPath,
     projects,
