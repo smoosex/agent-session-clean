@@ -20,6 +20,7 @@ export function displayPath(value: string): string {
   return normalized
 }
 
-export function projectId(projectPath: string): string {
-  return `project:${normalizeProjectPath(projectPath)}`
+export function projectId(projectPath: string, agentId?: string): string {
+  const normalized = normalizeProjectPath(projectPath)
+  return agentId ? `project:${agentId}:${normalized}` : `project:${normalized}`
 }

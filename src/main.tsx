@@ -2,6 +2,7 @@ import { render } from "@opentui/solid"
 import { CodexAdapter } from "./adapters/codex/adapter"
 import { PiAdapter } from "./adapters/pi/adapter"
 import { createAgentRegistry } from "./adapters/registry"
+import { createAgentUseCases } from "./application/use-cases"
 import { App } from "./app"
 
 function optionValue(args: string[], name: string): string | undefined {
@@ -16,8 +17,9 @@ const piAdapter = new PiAdapter(piSessionsDir)
 const codexAdapter = new CodexAdapter(codexSessionsDir)
 const registry = createAgentRegistry(piAdapter, codexAdapter)
 const activeAdapter = registry.get("pi") ?? piAdapter
+const useCases = createAgentUseCases(registry)
 
-await render(() => <App adapter={activeAdapter} adapters={registry} />, {
+await render(() => <App useCases={useCases} initialAgentId={activeAdapter.id} />, {
   exitOnCtrlC: true,
   backgroundColor: "#17151d",
   targetFps: 30,

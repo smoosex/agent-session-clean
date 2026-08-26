@@ -11,7 +11,7 @@ export function StatusBar(props: StatusBarProps) {
     if (props.store.scanStatus() === "scanning") return "Scanning…"
     if (props.store.scanStatus() === "error") return "Scan error"
     if (props.store.issues().length > 0) return `Scan complete · ${props.store.issues().length} issues`
-    return `Scan complete · ${props.store.scannedFiles()} files`
+    return `Scan complete · ${props.store.scannedSources()} sources`
   }
   return (
     <box height={1} marginX={1} flexDirection="row" backgroundColor={colors.panel} paddingX={1}>

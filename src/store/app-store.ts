@@ -1,13 +1,16 @@
 import { createEffect, createSignal, onCleanup } from "solid-js"
 import type { AgentId, AgentInfo } from "../domain/agent"
+import type { DeleteResult } from "../domain/operation"
 import type { ProjectSummary } from "../domain/project"
+import type { ScanIssue, ScanStatus } from "../domain/scan"
 import type { SessionDetail, SessionSummary } from "../domain/session"
-import type { AgentAdapter, ScanIssue, ScanStatus } from "../adapters/types"
-import { listAgents } from "../adapters/registry"
+import { clearSelection, selectAll, toggleSelection } from "../domain/selection"
+import type { AgentUseCases } from "../application/use-cases"
 import { formatBytes } from "../utils/format"
 
 export type FocusArea = "agent" | "projects" | "sessions" | "detail"
 export type SortMode = "updated-desc" | "updated-asc" | "name-asc" | "size-desc"
+export type DeleteStatus = "idle" | "deleting" | "complete" | "error"
 
 type AppStore = ReturnType<typeof createAppStore>
 
@@ -18,7 +21,7 @@ function searchableSession(session: SessionSummary): string {
 function sortSessions(sessions: SessionSummary[], sort: SortMode): SessionSummary[] {
   return [...sessions].sort((left, right) => {
     if (sort === "name-asc") return left.title.localeCompare(right.title)
-    if (sort === "size-desc") return right.sizeBytes - left.sizeBytes
+    if (sort === "size-desc") return (right.sizeBytes ?? 0) - (left.sizeBytes ?? 0)
     const leftTime = Date.parse(left.updatedAt) || 0
     const rightTime = Date.parse(right.updatedAt) || 0
     return sort === "updated-asc" ? leftTime - rightTime : rightTime - leftTime
@@ -35,28 +38,34 @@ function sortProjects(projects: ProjectSummary[], sort: SortMode): ProjectSummar
   })
 }
 
-export function createAppStore(adapter: AgentAdapter, adapters: ReadonlyMap<AgentId, AgentAdapter> = new Map<AgentId, AgentAdapter>([[adapter.id, adapter]])) {
-  const [agents] = createSignal<AgentInfo[]>(listAgents(adapters))
-  const [activeAgentId, setActiveAgentId] = createSignal<AgentId>(adapter.id)
+export function createAppStore(services: AgentUseCases, initialAgentId: AgentId = services.agents[0]?.id ?? "pi") {
+  const [agents] = createSignal<AgentInfo[]>(services.agents)
+  const [activeAgentId, setActiveAgentIdSignal] = createSignal<AgentId>(initialAgentId)
   const [scanStatus, setScanStatus] = createSignal<ScanStatus>("idle")
-  const [rootPath, setRootPath] = createSignal(adapter.info.detail ?? adapter.info.label)
+  const initialAgent = services.agents.find((agent) => agent.id === initialAgentId)
+  const [rootPath, setRootPath] = createSignal(initialAgent?.detail ?? initialAgent?.label ?? initialAgentId)
   const [projects, setProjects] = createSignal<ProjectSummary[]>([])
   const [sessions, setSessions] = createSignal<SessionSummary[]>([])
   const [selectedProjectId, setSelectedProjectId] = createSignal<string>()
   const [selectedSessionId, setSelectedSessionId] = createSignal<string>()
+  const [selectedSessionIds, setSelectedSessionIds] = createSignal<Set<string>>(new Set())
   const [sessionDetail, setSessionDetail] = createSignal<SessionDetail>()
   const [focus, setFocus] = createSignal<FocusArea>("projects")
   const [searchQuery, setSearchQuery] = createSignal("")
   const [sort, setSort] = createSignal<SortMode>("updated-desc")
   const [issues, setIssues] = createSignal<ScanIssue[]>([])
-  const [scannedFiles, setScannedFiles] = createSignal(0)
-  const [failedFiles, setFailedFiles] = createSignal(0)
+  const [scannedSources, setScannedSources] = createSignal(0)
+  const [failedSources, setFailedSources] = createSignal(0)
   const [detailLoading, setDetailLoading] = createSignal(false)
+  const [deleteStatus, setDeleteStatus] = createSignal<DeleteStatus>("idle")
+  const [lastDeleteResult, setLastDeleteResult] = createSignal<DeleteResult>()
   const [lastScanAt, setLastScanAt] = createSignal<string>()
   let scanVersion = 0
   let detailVersion = 0
+  let deleteVersion = 0
   let scanController: AbortController | undefined
-  let activeAdapter = adapter
+  let detailController: AbortController | undefined
+  let deleteController: AbortController | undefined
 
   const queryMatches = (value: string | undefined, query: string): boolean => Boolean(value && value.toLowerCase().includes(query))
 
@@ -65,7 +74,7 @@ export function createAppStore(adapter: AgentAdapter, adapters: ReadonlyMap<Agen
     const allProjects = projects()
     if (!query) return sortProjects(allProjects, sort())
     return sortProjects(allProjects.filter((project) => {
-      if (queryMatches(project.path, query) || queryMatches(project.displayPath, query)) return true
+      if (queryMatches(project.name, query) || queryMatches(project.location, query) || queryMatches(project.displayPath, query)) return true
       return sessions().some((session) => session.projectId === project.id && searchableSession(session).includes(query))
     }), sort())
   }
@@ -75,7 +84,7 @@ export function createAppStore(adapter: AgentAdapter, adapters: ReadonlyMap<Agen
     if (!projectId) return []
     const query = searchQuery().trim().toLowerCase()
     const project = projects().find((candidate) => candidate.id === projectId)
-    const projectMatches = Boolean(query && project && (queryMatches(project.path, query) || queryMatches(project.displayPath, query)))
+    const projectMatches = Boolean(query && project && (queryMatches(project.name, query) || queryMatches(project.location, query) || queryMatches(project.displayPath, query)))
     const projectSessions = sessions().filter((session) => session.projectId === projectId)
     if (!query || projectMatches) return sortSessions(projectSessions, sort())
     return sortSessions(projectSessions.filter((session) => searchableSession(session).includes(query)), sort())
@@ -85,12 +94,13 @@ export function createAppStore(adapter: AgentAdapter, adapters: ReadonlyMap<Agen
   const selectedSession = () => sessions().find((session) => session.id === selectedSessionId())
   const summary = () => {
     const allSessions = sessions()
-    const totalSize = allSessions.reduce((total, session) => total + session.sizeBytes, 0)
+    const totalSize = allSessions.reduce((total, session) => total + (session.sizeBytes ?? 0), 0)
     return `${projects().length} projects · ${allSessions.length} sessions · ${formatBytes(totalSize)}`
   }
 
   async function loadDetail(sessionId: string | undefined): Promise<void> {
     const version = ++detailVersion
+    detailController?.abort()
     if (!sessionId) {
       setSessionDetail(undefined)
       setDetailLoading(false)
@@ -102,22 +112,35 @@ export function createAppStore(adapter: AgentAdapter, adapters: ReadonlyMap<Agen
       setDetailLoading(false)
       return
     }
+    const controller = new AbortController()
+    detailController = controller
     setSessionDetail(undefined)
     setDetailLoading(true)
-    const adapterForDetail = activeAdapter
     try {
-      const detail = await adapterForDetail.loadDetail(session)
+      const detail = await services.loadSessionDetail(session, controller.signal)
       if (version === detailVersion && selectedSessionId() === sessionId) setSessionDetail(detail)
     } catch (error) {
       if (version !== detailVersion || selectedSessionId() !== sessionId) return
-      setSessionDetail({ ...session, warnings: [...session.warnings, error instanceof Error ? error.message : String(error)], warningCount: session.warnings.length + 1 })
+      if ((error as Error).name === "AbortError" || (error as NodeJS.ErrnoException).code === "ABORT_ERR") return
+      const warning = error instanceof Error ? error.message : String(error)
+      setSessionDetail({ ...session, warnings: [...session.warnings, warning], fields: [], warningCount: session.warnings.length + 1 })
     } finally {
       if (version === detailVersion) setDetailLoading(false)
     }
   }
 
+  function filteredSessionsFor(projectId: string): SessionSummary[] {
+    const query = searchQuery().trim().toLowerCase()
+    const project = projects().find((candidate) => candidate.id === projectId)
+    const projectMatches = Boolean(query && project && (queryMatches(project.name, query) || queryMatches(project.location, query) || queryMatches(project.displayPath, query)))
+    const projectSessions = sessions().filter((session) => session.projectId === projectId)
+    if (!query || projectMatches) return sortSessions(projectSessions, sort())
+    return sortSessions(projectSessions.filter((session) => searchableSession(session).includes(query)), sort())
+  }
+
   function chooseProject(projectId: string | undefined, load = true): void {
-    const project = filteredProjects().find((candidate) => candidate.id === projectId) ?? filteredProjects()[0]
+    const visibleProjects = filteredProjects()
+    const project = visibleProjects.find((candidate) => candidate.id === projectId) ?? visibleProjects[0]
     setSelectedProjectId(project?.id)
     const nextSession = project ? filteredSessionsFor(project.id)[0] : undefined
     setSelectedSessionId(nextSession?.id)
@@ -125,32 +148,26 @@ export function createAppStore(adapter: AgentAdapter, adapters: ReadonlyMap<Agen
     if (load) void loadDetail(nextSession?.id)
   }
 
-  function filteredSessionsFor(projectId: string): SessionSummary[] {
-    const query = searchQuery().trim().toLowerCase()
-    const project = projects().find((candidate) => candidate.id === projectId)
-    const projectMatches = Boolean(query && project && (queryMatches(project.path, query) || queryMatches(project.displayPath, query)))
-    const projectSessions = sessions().filter((session) => session.projectId === projectId)
-    if (!query || projectMatches) return sortSessions(projectSessions, sort())
-    return sortSessions(projectSessions.filter((session) => searchableSession(session).includes(query)), sort())
-  }
-
   function chooseSession(sessionId: string | undefined, load = true): void {
-    const session = filteredSessions().find((candidate) => candidate.id === sessionId) ?? filteredSessions()[0]
+    const visibleSessions = filteredSessions()
+    const session = visibleSessions.find((candidate) => candidate.id === sessionId) ?? visibleSessions[0]
     setSelectedSessionId(session?.id)
     setSessionDetail(undefined)
     if (load) void loadDetail(session?.id)
   }
 
-  function applyResult(result: Awaited<ReturnType<AgentAdapter["scan"]>>, previousProjectId?: string, previousSessionId?: string): void {
+  function applyResult(result: Awaited<ReturnType<AgentUseCases["scanSessions"]>>, previousProjectId?: string, previousSessionId?: string): void {
     setRootPath(result.rootPath)
     setProjects(result.projects)
     setSessions(result.sessions)
     setIssues(result.issues)
-    setScannedFiles(result.scannedFiles)
-    setFailedFiles(result.failedFiles)
+    setScannedSources(result.scannedSources)
+    setFailedSources(result.failedSources)
     setLastScanAt(new Date().toISOString())
+    setSelectedSessionIds((current) => new Set([...current].filter((id) => result.sessions.some((session) => session.id === id))))
     const project = result.projects.find((candidate) => candidate.id === previousProjectId) ?? result.projects[0]
-    const session = project ? result.sessions.filter((candidate) => candidate.projectId === project.id).sort((left, right) => (Date.parse(right.updatedAt) || 0) - (Date.parse(left.updatedAt) || 0)).find((candidate) => candidate.id === previousSessionId) ?? result.sessions.find((candidate) => candidate.projectId === project.id) : undefined
+    const projectSessions = project ? result.sessions.filter((candidate) => candidate.projectId === project.id) : []
+    const session = projectSessions.find((candidate) => candidate.id === previousSessionId) ?? projectSessions[0]
     setSelectedProjectId(project?.id)
     setSelectedSessionId(session?.id)
     setSessionDetail(undefined)
@@ -158,28 +175,32 @@ export function createAppStore(adapter: AgentAdapter, adapters: ReadonlyMap<Agen
   }
 
   function setActiveAgent(agentId: AgentId): void {
-    const nextAdapter = adapters.get(agentId)
-    if (!nextAdapter || nextAdapter.id === activeAgentId()) return
+    const nextAgent = agents().find((agent) => agent.id === agentId)
+    if (!nextAgent || nextAgent.id === activeAgentId()) return
     scanController?.abort()
+    detailController?.abort()
+    deleteController?.abort()
     scanVersion += 1
     detailVersion += 1
-    activeAdapter = nextAdapter
-    setActiveAgentId(agentId)
-    setRootPath(nextAdapter.info.detail ?? nextAdapter.info.label)
+    deleteVersion += 1
+    setActiveAgentIdSignal(agentId)
+    setRootPath(nextAgent.detail ?? nextAgent.label)
     setScanStatus("idle")
+    setDeleteStatus("idle")
     setProjects([])
     setSessions([])
     setIssues([])
-    setScannedFiles(0)
-    setFailedFiles(0)
+    setScannedSources(0)
+    setFailedSources(0)
     setSelectedProjectId(undefined)
     setSelectedSessionId(undefined)
+    setSelectedSessionIds(clearSelection())
     setSessionDetail(undefined)
     void scan()
   }
 
   async function scan(): Promise<void> {
-    const adapterForScan = activeAdapter
+    const agentId = activeAgentId()
     const version = ++scanVersion
     scanController?.abort()
     const controller = new AbortController()
@@ -188,10 +209,10 @@ export function createAppStore(adapter: AgentAdapter, adapters: ReadonlyMap<Agen
     const previousSessionId = selectedSessionId()
     setScanStatus("scanning")
     try {
-      const result = await adapterForScan.scan({ signal: controller.signal })
-      if (version !== scanVersion) return
+      const result = await services.scanSessions(agentId, { signal: controller.signal })
+      if (version !== scanVersion || activeAgentId() !== agentId) return
       applyResult(result, previousProjectId, previousSessionId)
-      setScanStatus(result.issues.some((issue) => issue.severity === "error") || (result.failedFiles > 0 && result.sessions.length === 0) ? "error" : "complete")
+      setScanStatus(result.issues.some((issue) => issue.severity === "error") || (result.failedSources > 0 && result.sessions.length === 0) ? "error" : "complete")
     } catch (error) {
       if (version !== scanVersion || (error as Error).name === "AbortError" || (error as NodeJS.ErrnoException).code === "ABORT_ERR") return
       setScanStatus("error")
@@ -200,8 +221,48 @@ export function createAppStore(adapter: AgentAdapter, adapters: ReadonlyMap<Agen
       setSessions([])
       setSelectedProjectId(undefined)
       setSelectedSessionId(undefined)
+      setSelectedSessionIds(clearSelection())
       setSessionDetail(undefined)
     }
+  }
+
+  async function deleteSelected(): Promise<DeleteResult | undefined> {
+    const version = ++deleteVersion
+    const selected = sessions().filter((session) => selectedSessionIds().has(session.id))
+    if (selected.length === 0) return undefined
+    deleteController?.abort()
+    const controller = new AbortController()
+    deleteController = controller
+    setDeleteStatus("deleting")
+    try {
+      const result = await services.deleteSessions(selected, { signal: controller.signal })
+      if (version !== deleteVersion) return result
+      setLastDeleteResult(result)
+      const failed = result.items.filter((item) => !item.success)
+      setDeleteStatus(failed.length > 0 ? "error" : "complete")
+      setSelectedSessionIds(new Set(failed.map((item) => item.sessionId)))
+      await scan()
+      return result
+    } catch (error) {
+      if ((error as Error).name === "AbortError" || (error as NodeJS.ErrnoException).code === "ABORT_ERR") return undefined
+      if (version === deleteVersion) {
+        setDeleteStatus("error")
+        setIssues([{ message: error instanceof Error ? error.message : String(error), severity: "error" }])
+      }
+      return undefined
+    }
+  }
+
+  function toggleSession(sessionId: string): void {
+    setSelectedSessionIds((current) => toggleSelection(current, sessionId))
+  }
+
+  function selectAllVisibleSessions(): void {
+    setSelectedSessionIds((current) => selectAll(current, filteredSessions().map((session) => session.id)))
+  }
+
+  function clearSelectedSessions(): void {
+    setSelectedSessionIds(clearSelection())
   }
 
   createEffect(() => {
@@ -225,7 +286,11 @@ export function createAppStore(adapter: AgentAdapter, adapters: ReadonlyMap<Agen
     }
   })
 
-  onCleanup(() => scanController?.abort())
+  onCleanup(() => {
+    scanController?.abort()
+    detailController?.abort()
+    deleteController?.abort()
+  })
 
   return {
     agents,
@@ -241,20 +306,27 @@ export function createAppStore(adapter: AgentAdapter, adapters: ReadonlyMap<Agen
     selectedSession,
     selectedProjectId,
     selectedSessionId,
+    selectedSessionIds,
     sessionDetail,
     focus,
     searchQuery,
     sort,
     issues,
-    scannedFiles,
-    failedFiles,
+    scannedSources,
+    failedSources,
     detailLoading,
+    deleteStatus,
+    lastDeleteResult,
     lastScanAt,
     summary,
     scan,
+    deleteSelected,
     chooseProject,
     chooseSession,
     loadDetail,
+    toggleSession,
+    selectAllVisibleSessions,
+    clearSelectedSessions,
     setFocus,
     setSearchQuery,
     setSort,

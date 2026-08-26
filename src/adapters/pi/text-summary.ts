@@ -1,5 +1,5 @@
-import { cleanText, truncate } from "../utils/truncate"
-import type { PiMessage, PiRecord } from "../adapters/pi/types"
+import { cleanText, truncate } from "../../utils/truncate"
+import type { PiMessage, PiRecord } from "./types"
 
 export function messageRole(record: PiRecord): string | undefined {
   return typeof record.message?.role === "string" ? record.message.role : undefined

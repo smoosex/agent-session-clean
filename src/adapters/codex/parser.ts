@@ -1,5 +1,8 @@
 import { createReadStream } from "node:fs"
 import { createInterface } from "node:readline"
+import type { SessionParser } from "../../application/ports"
+import type { ParsedSession, SessionSource } from "../../domain/scan"
+import type { DetailField, SessionDetail, SessionSummary } from "../../domain/session"
 import { truncate } from "../../utils/truncate"
 import type { ParsedCodexSession } from "./types"
 
@@ -152,4 +155,51 @@ export async function parseCodexSessionFile(filePath: string, signal?: AbortSign
   if (!result.createdAt) addWarning(result.warnings, "Codex session header is missing timestamp")
   if (!result.projectPath) addWarning(result.warnings, "Codex session header is missing cwd")
   return result
+}
+
+function detailFields(parsed: ParsedCodexSession, source: string): DetailField[] {
+  const fields: DetailField[] = [{ label: "Source", value: source }, { label: "Records", value: String(parsed.recordCount) }]
+  if (parsed.providerModels.length > 0) fields.push({ label: "Provider / model", value: parsed.providerModels.join(", ") })
+  return fields
+}
+
+function toParsedSession(source: SessionSource, parsed: ParsedCodexSession): ParsedSession {
+  return {
+    sessionId: parsed.sessionId,
+    projectLocation: parsed.projectPath,
+    createdAt: parsed.createdAt,
+    title: parsed.title,
+    messageCount: parsed.messageCount,
+    firstUserMessage: parsed.firstUserMessage,
+    lastUserMessage: parsed.lastUserMessage,
+    providerModels: parsed.providerModels,
+    warnings: parsed.warnings,
+    detailFields: detailFields(parsed, source.locator),
+  }
+}
+
+export class CodexParser implements SessionParser {
+  async parseSummary(source: SessionSource, signal?: AbortSignal): Promise<ParsedSession> {
+    return toParsedSession(source, await parseCodexSessionFile(source.locator, signal))
+  }
+
+  async loadDetail(session: SessionSummary, signal?: AbortSignal): Promise<SessionDetail> {
+    const parsed = await parseCodexSessionFile(session.ref.sourceId, signal)
+    const projectLocation = parsed.projectPath ?? session.projectLocation
+    const warnings = [...new Set([...session.warnings, ...parsed.warnings])]
+    return {
+      ...session,
+      sessionId: parsed.sessionId ?? session.sessionId,
+      projectLocation,
+      title: truncate(parsed.title ?? session.title, 160) || "Untitled session",
+      createdAt: parsed.createdAt ?? session.createdAt,
+      messageCount: parsed.messageCount,
+      firstUserMessage: parsed.firstUserMessage,
+      lastUserMessage: parsed.lastUserMessage,
+      providerModels: parsed.providerModels,
+      warnings,
+      fields: detailFields(parsed, session.ref.sourceId),
+      warningCount: warnings.length,
+    }
+  }
 }

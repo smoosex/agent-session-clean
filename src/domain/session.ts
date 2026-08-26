@@ -1,15 +1,28 @@
+import type { AgentId } from "./agent"
+
+export type SessionRef = {
+  agentId: AgentId
+  sourceId: string
+}
+
+export type DetailField = {
+  label: string
+  value: string
+}
+
 export type SessionSummary = {
   id: string
+  ref: SessionRef
+  agentId: AgentId
   sessionId?: string
   projectId: string
-  projectPath: string
-  filePath: string
+  projectName: string
+  projectLocation?: string
   title: string
   createdAt?: string
   updatedAt: string
-  sizeBytes: number
-  recordCount: number
-  messageCount: number
+  sizeBytes?: number
+  messageCount?: number
   firstUserMessage?: string
   lastUserMessage?: string
   providerModels: string[]
@@ -17,7 +30,6 @@ export type SessionSummary = {
 }
 
 export type SessionDetail = SessionSummary & {
-  version?: number
-  rawCwd?: string
+  fields: DetailField[]
   warningCount: number
 }

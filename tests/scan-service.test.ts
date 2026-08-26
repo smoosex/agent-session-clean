@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, stat, utimes } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import { describe, expect, test } from "bun:test"
-import { scanPiSessions } from "../src/services/scan-service"
+import { PiAdapter } from "../src/adapters/pi/adapter"
 
 async function makeSession(root: string, directory: string, id: string, cwd: string, timestamp: string, title: string): Promise<string> {
   const targetDirectory = path.join(root, directory)
@@ -17,7 +17,7 @@ async function makeSession(root: string, directory: string, id: string, cwd: str
   return target
 }
 
-describe("scanPiSessions", () => {
+describe("PiScanner", () => {
   test("groups projects and sorts sessions without changing files", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "agc-scan-"))
     try {
@@ -27,10 +27,10 @@ describe("scanPiSessions", () => {
       const before = await stat(newest)
       const contentBefore = await Bun.file(newest).text()
 
-      const result = await scanPiSessions(root)
+      const result = await new PiAdapter(root).scanner.scan()
 
       expect(result.projects).toHaveLength(2)
-      expect(result.projects[0]?.path).toBe(path.normalize("/work/app"))
+      expect(result.projects[0]?.location).toBe(path.normalize("/work/app"))
       expect(result.projects[0]?.sessionCount).toBe(2)
       expect(result.sessions.map((session) => session.sessionId)).toEqual(["new", "other", "old"])
       expect(result.sessions.find((session) => session.sessionId === "new")?.title).toBe("Newest")
@@ -48,9 +48,9 @@ describe("scanPiSessions", () => {
     try {
       await Bun.write(path.join(root, "broken.jsonl"), "broken")
       await Bun.write(path.join(root, "notes.txt"), "ignored")
-      const result = await scanPiSessions(root)
-      expect(result.scannedFiles).toBe(1)
-      expect(result.failedFiles).toBe(1)
+      const result = await new PiAdapter(root).scanner.scan()
+      expect(result.scannedSources).toBe(1)
+      expect(result.failedSources).toBe(1)
       expect(result.issues.some((issue) => issue.message.includes("Invalid JSON"))).toBe(true)
       expect(result.issues.some((issue) => issue.message === "Skipped non-JSONL file")).toBe(true)
     } finally {

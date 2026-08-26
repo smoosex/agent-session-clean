@@ -1,5 +1,5 @@
 import { For } from "solid-js"
-import type { ScanIssue } from "../adapters/types"
+import type { ScanIssue } from "../domain/scan"
 import type { AppStore } from "../store/app-store"
 import { colors } from "../theme/tokens"
 import { truncate } from "../utils/truncate"
@@ -12,7 +12,7 @@ export function IssuePanel(props: IssuePanelProps) {
   const hasError = () => props.store.issues().some((issue) => issue.severity === "error")
   const formatIssue = (issue: ScanIssue) => {
     const prefix = issue.severity === "error" ? "✕" : "!"
-    return truncate(`${prefix} ${issue.path ? `${issue.path}: ` : ""}${issue.message}`, 180)
+    return truncate(`${prefix} ${issue.location ? `${issue.location}: ` : ""}${issue.message}`, 180)
   }
 
   return (

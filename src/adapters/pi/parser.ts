@@ -1,6 +1,10 @@
 import { createReadStream } from "node:fs"
 import { createInterface } from "node:readline"
-import { messageRole, messageText, recordProviderModel, recordTitle } from "../../services/text-summary"
+import type { SessionParser } from "../../application/ports"
+import type { ParsedSession, SessionSource } from "../../domain/scan"
+import type { DetailField, SessionDetail, SessionSummary } from "../../domain/session"
+import { truncate } from "../../utils/truncate"
+import { messageRole, messageText, recordProviderModel, recordTitle } from "./text-summary"
 import type { PiRecord, PiSessionHeader, ParsedPiSession } from "./types"
 
 function asRecord(value: unknown): PiRecord | undefined {
@@ -87,4 +91,53 @@ export async function parsePiSessionFile(filePath: string, signal?: AbortSignal)
   if (!result.header?.timestamp) addWarning(result.warnings, "Session header is missing timestamp")
   if (!result.header?.cwd) addWarning(result.warnings, "Session header is missing cwd")
   return result
+}
+
+function detailFields(parsed: ParsedPiSession, source: string): DetailField[] {
+  const fields: DetailField[] = [{ label: "Source", value: source }]
+  if (parsed.header?.version !== undefined) fields.push({ label: "Pi version", value: String(parsed.header.version) })
+  fields.push({ label: "Records", value: String(parsed.recordCount) })
+  if (parsed.providerModels.length > 0) fields.push({ label: "Provider / model", value: parsed.providerModels.join(", ") })
+  return fields
+}
+
+function toParsedSession(source: SessionSource, parsed: ParsedPiSession): ParsedSession {
+  return {
+    sessionId: parsed.header?.id,
+    projectLocation: parsed.header?.cwd,
+    createdAt: parsed.header?.timestamp,
+    title: parsed.title ?? parsed.header?.title ?? parsed.header?.name,
+    messageCount: parsed.messageCount,
+    firstUserMessage: parsed.firstUserMessage,
+    lastUserMessage: parsed.lastUserMessage,
+    providerModels: parsed.providerModels,
+    warnings: parsed.warnings,
+    detailFields: detailFields(parsed, source.locator),
+  }
+}
+
+export class PiParser implements SessionParser {
+  async parseSummary(source: SessionSource, signal?: AbortSignal): Promise<ParsedSession> {
+    return toParsedSession(source, await parsePiSessionFile(source.locator, signal))
+  }
+
+  async loadDetail(session: SessionSummary, signal?: AbortSignal): Promise<SessionDetail> {
+    const parsed = await parsePiSessionFile(session.ref.sourceId, signal)
+    const projectLocation = parsed.header?.cwd ?? session.projectLocation
+    const warnings = [...new Set([...session.warnings, ...parsed.warnings])]
+    return {
+      ...session,
+      sessionId: parsed.header?.id ?? session.sessionId,
+      projectLocation,
+      title: truncate(parsed.title ?? session.title, 160) || "Untitled session",
+      createdAt: parsed.header?.timestamp ?? session.createdAt,
+      messageCount: parsed.messageCount,
+      firstUserMessage: parsed.firstUserMessage,
+      lastUserMessage: parsed.lastUserMessage,
+      providerModels: parsed.providerModels,
+      warnings,
+      fields: detailFields(parsed, session.ref.sourceId),
+      warningCount: warnings.length,
+    }
+  }
 }

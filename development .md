@@ -189,70 +189,62 @@ Agent  [ ● Pi ▾ ]
 ### 4.1 分层结构
 
 ```text
-OpenTUI Renderer
-        │
-SolidJS UI Components
+OpenTUI Components
         │
 App Store / Derived State
         │
-Scan Service
+Application Use Cases
         │
-Agent Adapter Registry
+Application Ports
         │
-Pi Adapter
+Pi / Codex / Future Agent Adapters
         │
-Local File System
+Agent-specific storage
 ```
 
-UI 不直接访问文件系统。所有扫描和解析操作都通过扫描服务和 Agent 适配器完成。
+`domain/` 只定义统一的 Agent 无关模型。`application/` 定义 scanner、parser、deleter 等统一接口，并编排扫描、详情和删除用例。`adapters/` 由每个 Agent 自己实现格式和存储适配。UI 和 Store 不直接访问文件系统，也不依赖 Pi 或 Codex 的原始类型。
 
-### 4.2 Agent 适配器接口
-
-适配器负责处理某一种 Agent 的发现、扫描和 session 解析。UI 只依赖统一的数据模型。
+### 4.2 Agent 能力接口
 
 ```ts
+interface SessionScanner {
+  rootPath: string
+  detect(): Promise<AgentDetection>
+  scan(options?: ScanOptions): Promise<ScanResult>
+}
+
+interface SessionParser {
+  parseSummary(source: SessionSource, signal?: AbortSignal): Promise<ParsedSession>
+  loadDetail(session: SessionSummary, signal?: AbortSignal): Promise<SessionDetail>
+}
+
+interface SessionDeleter {
+  deleteSessions(sessions: readonly SessionSummary[], options?: DeleteOptions): Promise<DeleteResult>
+}
+
 interface AgentAdapter {
   id: AgentId
-  label: string
-  status: "available" | "coming-soon"
-  detect(): Promise<AgentDetection>
-  scan(options?: ScanOptions): Promise<AgentScanResult>
-  loadDetail(session: SessionSummary): Promise<SessionDetail>
+  info: AgentInfo
+  scanner: SessionScanner
+  parser: SessionParser
+  deleter?: SessionDeleter
 }
 ```
 
-首版实现 `PiAdapter` 和 `CodexAdapter`。Claude Code 和 Antigravity 在注册表中声明为 `coming-soon`，不提供空的伪数据。
+首版实现 `PiAdapter` 和 `CodexAdapter` 的 scanner、parser。删除接口已预留但尚未启用；未来 Agent 只需实现这些统一 ports，不修改 TUI 展示模型和业务用例。
 
-### 4.3 状态模型
+### 4.3 统一展示模型和状态
 
-```ts
-type AgentId = "pi" | "claude-code" | "codex" | "antigravity"
+`SessionSummary` 不暴露 `filePath`、`recordCount` 等特定存储格式字段，而是使用 `agentId`、`SessionRef`、通用摘要字段和 Agent 提供的详情字段。不同 Agent 的 session ID 使用 Agent 作用域，避免跨 Agent 冲突。
 
-type AgentStatus = "available" | "coming-soon" | "error"
+Store 负责：
 
-type AppState = {
-  agents: AgentInfo[]
-  activeAgentId: AgentId
-  scanStatus: ScanStatus
-  projects: ProjectSummary[]
-  selectedProjectId?: string
-  sessions: SessionSummary[]
-  selectedSessionId?: string
-  sessionDetail?: SessionDetail
-  focus: "agent" | "projects" | "sessions" | "detail"
-  searchQuery: string
-  sort: "updated-desc" | "updated-asc" | "name-asc" | "size-desc"
-  errors: ScanIssue[]
-}
-```
+- 当前 Agent、项目、session 和详情。
+- 搜索、排序、焦点和扫描状态。
+- 当前选中 session 以及未来的多选集合。
+- 扫描、详情、删除用例的 loading、取消、错误和竞态保护。
 
-推荐使用 SolidJS signals 保存可变状态，使用 memo 计算：
-
-- 当前过滤后的项目。
-- 当前项目的 session 列表。
-- 当前选中的 session。
-- 顶部统计信息。
-- 空状态和错误状态。
+多选是应用层状态，不属于任何 Agent。批量删除用例按 `agentId` 分组，调用对应 Agent 的 deleter，汇总逐项结果并在成功后重新扫描。
 
 ## 5. Pi 适配器设计
 
@@ -358,7 +350,7 @@ Pi session 使用 JSONL 保存多种记录，可能包含 model change、thinkin
 4. `cwd` 缺失时使用 session 所在目录作为 fallback。
 5. 仍无法确定时归入 `Unknown project`。
 
-项目 ID 不应只使用项目名称，因为不同目录可能存在同名项目。建议使用规范化绝对路径生成稳定 ID。
+项目 ID 不应只使用项目名称，因为不同目录可能存在同名项目。建议使用规范化绝对路径和 Agent ID 生成稳定且有作用域的 ID。
 
 ## 5.7 Codex 适配器设计
 
@@ -385,23 +377,38 @@ agc/
 ├── docs/
 │   └── AGC-首版开发文档.md
 └── src/
-    ├── main.ts
+    ├── main.tsx
     ├── app.tsx
     ├── domain/
     │   ├── agent.ts
     │   ├── project.ts
-    │   └── session.ts
+    │   ├── session.ts
+    │   ├── scan.ts
+    │   ├── selection.ts
+    │   └── operation.ts
+    ├── application/
+    │   ├── ports.ts
+    │   └── use-cases/
+    │       ├── scan-sessions.ts
+    │       ├── load-session-detail.ts
+    │       ├── delete-sessions.ts
+    │       └── index.ts
     ├── adapters/
-    │   ├── types.ts
     │   ├── registry.ts
-    │   └── pi/
+    │   ├── pi/
+    │   │   ├── adapter.ts
+    │   │   ├── scanner.ts
+    │   │   ├── parser.ts
+    │   │   ├── text-summary.ts
+    │   │   └── types.ts
+    │   └── codex/
     │       ├── adapter.ts
-    │       ├── discover.ts
+    │       ├── scanner.ts
     │       ├── parser.ts
     │       └── types.ts
     ├── services/
-    │   ├── scan-service.ts
-    │   └── text-summary.ts
+    │   ├── discover-jsonl.ts
+    │   └── scan-service.ts
     ├── store/
     │   └── app-store.ts
     ├── components/
