@@ -13,7 +13,7 @@ type SessionDetailProps = {
 
 export function SessionDetail(props: SessionDetailProps) {
   return (
-    <box flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0} width={props.width ?? "33%"} minWidth={34} backgroundColor={colors.panel} border borderColor={props.store.focus() === "detail" ? colors.accent : colors.border} focusedBorderColor={colors.accent} focused={props.store.focus() === "detail"} position={props.overlay ? "absolute" : "relative"} top={props.overlay ? 0 : undefined} right={props.overlay ? 0 : undefined} height={props.overlay ? "100%" : undefined} zIndex={props.overlay ? 10 : undefined}>
+    <box flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0} width={props.width ?? "33%"} minWidth={34} backgroundColor={colors.panel} border borderStyle="rounded" borderColor={props.store.focus() === "detail" ? colors.accent : colors.border} focusedBorderColor={colors.accent} focused={props.store.focus() === "detail"} position={props.overlay ? "absolute" : "relative"} top={props.overlay ? 0 : undefined} right={props.overlay ? 0 : undefined} height={props.overlay ? "100%" : undefined} zIndex={props.overlay ? 10 : undefined}>
       <text height={2} paddingX={1} fg={colors.accent} attributes={1}>[3] Session details</text>
       <Show when={!props.store.detailLoading()} fallback={<EmptyState title="Loading details" detail="Reading this session as a stream…" />}>
         <Show when={props.store.sessionDetail()} fallback={<EmptyState title="No session selected" detail="Select a session to inspect its metadata." />}>

@@ -16,7 +16,7 @@ export function IssuePanel(props: IssuePanelProps) {
   }
 
   return (
-    <box height={6} flexDirection="column" backgroundColor={colors.panel} border borderColor={hasError() ? colors.error : colors.warning}>
+    <box height={6} flexDirection="column" backgroundColor={colors.panel} border borderStyle="rounded" borderColor={hasError() ? colors.error : colors.warning}>
       <text height={1} paddingX={1} fg={hasError() ? colors.error : colors.warning} attributes={1}>[!] Issues ({props.store.issues().length})</text>
       <scrollbox flexGrow={1} paddingX={1}>
         <For each={props.store.issues()}>{(issue) => <text fg={issue.severity === "error" ? colors.error : colors.warning}>{formatIssue(issue)}</text>}</For>

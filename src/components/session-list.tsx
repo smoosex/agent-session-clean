@@ -22,7 +22,7 @@ export function SessionList(props: SessionListProps) {
   })
 
   return (
-    <box flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0} width={props.width ?? "39%"} minWidth={30} backgroundColor={colors.panel} border borderColor={props.store.focus() === "sessions" ? colors.accent : colors.border} focusedBorderColor={colors.accent} focused={props.store.focus() === "sessions"}>
+    <box flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0} width={props.width ?? "39%"} minWidth={30} backgroundColor={colors.panel} border borderStyle="rounded" borderColor={props.store.focus() === "sessions" ? colors.accent : colors.border} focusedBorderColor={colors.accent} focused={props.store.focus() === "sessions"}>
       <text height={2} paddingX={1} fg={colors.accent} attributes={1}>[2] Sessions</text>
       <Show when={props.store.filteredSessions().length > 0} fallback={<EmptyState title="No sessions in this project" detail={props.store.searchQuery() ? "Try a different search." : "Try another project or press r to rescan."} />}>
         <scrollbox ref={(element) => { scrollbox = element }} flexGrow={1} minHeight={0}>
