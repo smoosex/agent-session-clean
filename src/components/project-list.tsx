@@ -30,9 +30,8 @@ export function ProjectList(props: ProjectListProps) {
             const selected = () => props.store.selectedProjectId() === project.id
             return (
               <box id={`project-item-${project.id}`} height={3} flexDirection="row" backgroundColor={selected() ? colors.selected : colors.panel}>
-                <text width={1} height={3} fg={colors.text}>{selected() ? "▌\n▌\n▌" : " \n \n "}</text>
                 <box flexGrow={1} flexDirection="column" paddingLeft={2} paddingRight={1}>
-                  <text fg={selected() ? colors.text : colors.muted}>{project.displayPath}</text>
+                  <text fg={selected() ? colors.muted : colors.text}>{project.displayPath}</text>
                   <text fg={colors.muted}>{project.sessionCount} sessions · {formatBytes(project.totalSizeBytes)}</text>
                   <text fg={project.warningCount > 0 ? colors.warning : colors.muted}>{project.warningCount > 0 ? `! ${project.warningCount} warnings` : formatRelativeTime(project.updatedAt)}</text>
                 </box>
