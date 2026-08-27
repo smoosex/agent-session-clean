@@ -65,4 +65,35 @@ describe("createAppStore", () => {
     expect(store.rootPath()).toBe("/tmp/codex-sessions")
     expect(store.selectedSessionId()).toBe("session:codex:codex")
   })
+
+  test("keeps the list position when the selected session disappears", async () => {
+    const project = { id: "project:pi:/work/app", agentId: "pi" as const, name: "/work/app", location: "/work/app", displayPath: "/work/app", sessionCount: 3, totalSizeBytes: 30, updatedAt: "2026-03-03T00:00:00.000Z", warningCount: 0 }
+    const sessions = [
+      { id: "session:pi:first", ref: { agentId: "pi" as const, sourceId: "/tmp/first.jsonl" }, agentId: "pi" as const, sessionId: "first", projectId: project.id, projectName: project.name, projectLocation: project.location, title: "First", updatedAt: "2026-03-03T00:00:00.000Z", sizeBytes: 10, messageCount: 1, firstUserMessage: "First", providerModels: [], warnings: [] },
+      { id: "session:pi:middle", ref: { agentId: "pi" as const, sourceId: "/tmp/middle.jsonl" }, agentId: "pi" as const, sessionId: "middle", projectId: project.id, projectName: project.name, projectLocation: project.location, title: "Middle", updatedAt: "2026-03-02T00:00:00.000Z", sizeBytes: 10, messageCount: 1, firstUserMessage: "Middle", providerModels: [], warnings: [] },
+      { id: "session:pi:last", ref: { agentId: "pi" as const, sourceId: "/tmp/last.jsonl" }, agentId: "pi" as const, sessionId: "last", projectId: project.id, projectName: project.name, projectLocation: project.location, title: "Last", updatedAt: "2026-03-01T00:00:00.000Z", sizeBytes: 10, messageCount: 1, firstUserMessage: "Last", providerModels: [], warnings: [] },
+    ]
+    let current: ScanResult = {
+      agentId: "pi",
+      rootPath: "/tmp/sessions",
+      scannedSources: 3,
+      failedSources: 0,
+      issues: [],
+      projects: [project],
+      sessions,
+    }
+    const adapter = fakeAdapter("pi", current)
+    adapter.scanner.scan = async () => current
+    const store = createAppStore(createAgentUseCases(new Map([["pi", adapter]])), "pi")
+    await store.scan()
+    store.chooseSession("session:pi:middle")
+    current = {
+      ...current,
+      scannedSources: 2,
+      projects: [{ ...project, sessionCount: 2, totalSizeBytes: 20 }],
+      sessions: [sessions[0]!, sessions[2]!],
+    }
+    await store.scan()
+    expect(store.selectedSessionId()).toBe("session:pi:last")
+  })
 })

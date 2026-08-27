@@ -39,6 +39,14 @@ function sortProjects(projects: ProjectSummary[], sort: SortMode): ProjectSummar
   })
 }
 
+function pickRemaining<T extends { id: string }>(nextItems: readonly T[], previousId: string | undefined, previousItems: readonly T[]): T | undefined {
+  const current = nextItems.find((item) => item.id === previousId)
+  if (current) return current
+  const index = previousItems.findIndex((item) => item.id === previousId)
+  if (index < 0) return nextItems[0]
+  return nextItems[Math.min(index, nextItems.length - 1)]
+}
+
 export function createAppStore(services: AgentUseCases, initialAgentId: AgentId = services.agents[0]?.id ?? "pi") {
   const [agents] = createSignal<AgentInfo[]>(services.agents)
   const [activeAgentId, setActiveAgentIdSignal] = createSignal<AgentId>(initialAgentId)
@@ -158,6 +166,8 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
   }
 
   function applyResult(result: Awaited<ReturnType<AgentUseCases["scanSessions"]>>, previousProjectId?: string, previousSessionId?: string): void {
+    const previousProjects = filteredProjects()
+    const previousSessions = filteredSessions()
     setRootPath(result.rootPath)
     setProjects(result.projects)
     setSessions(result.sessions)
@@ -166,10 +176,9 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
     setFailedSources(result.failedSources)
     setLastScanAt(new Date().toISOString())
     setSelectedSessionIds((current) => new Set([...current].filter((id) => result.sessions.some((session) => session.id === id))))
-    const project = result.projects.find((candidate) => candidate.id === previousProjectId) ?? result.projects[0]
-    const projectSessions = project ? result.sessions.filter((candidate) => candidate.projectId === project.id) : []
-    const session = projectSessions.find((candidate) => candidate.id === previousSessionId) ?? projectSessions[0]
+    const project = pickRemaining(filteredProjects(), previousProjectId, previousProjects)
     setSelectedProjectId(project?.id)
+    const session = pickRemaining(project ? filteredSessionsFor(project.id) : [], previousSessionId, previousSessions)
     setSelectedSessionId(session?.id)
     setSessionDetail(undefined)
     if (session) void loadDetail(session.id)

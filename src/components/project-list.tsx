@@ -1,9 +1,11 @@
-import { createEffect, For, Show } from "solid-js"
+import { createEffect, For, onCleanup, Show } from "solid-js"
 import type { ScrollBoxRenderable } from "@opentui/core"
+import { useRenderer } from "@opentui/solid"
 import type { ProjectSummary } from "../domain/project"
 import type { AppStore } from "../store/app-store"
 import { colors } from "../theme/tokens"
 import { formatBytes, formatRelativeTime } from "../utils/format"
+import { keepChildInView } from "../utils/scroll"
 import { EmptyState } from "./empty-state"
 
 type ProjectListProps = {
@@ -12,13 +14,14 @@ type ProjectListProps = {
 }
 
 export function ProjectList(props: ProjectListProps) {
+  const renderer = useRenderer()
   let scrollbox: ScrollBoxRenderable | undefined
 
   createEffect(() => {
     const projects = props.store.filteredProjects()
     const selectedId = props.store.selectedProjectId()
     if (!selectedId || !projects.some((project) => project.id === selectedId)) return
-    queueMicrotask(() => scrollbox?.scrollChildIntoView(`project-item-${selectedId}`))
+    onCleanup(keepChildInView(renderer, scrollbox, `project-item-${selectedId}`))
   })
 
   return (

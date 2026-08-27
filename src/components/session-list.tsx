@@ -1,9 +1,11 @@
-import { createEffect, For, Show } from "solid-js"
+import { createEffect, For, onCleanup, Show } from "solid-js"
 import type { ScrollBoxRenderable } from "@opentui/core"
+import { useRenderer } from "@opentui/solid"
 import type { SessionSummary } from "../domain/session"
 import type { AppStore } from "../store/app-store"
 import { colors } from "../theme/tokens"
 import { formatBytes, formatRelativeTime } from "../utils/format"
+import { keepChildInView } from "../utils/scroll"
 import { EmptyState } from "./empty-state"
 
 type SessionListProps = {
@@ -12,13 +14,14 @@ type SessionListProps = {
 }
 
 export function SessionList(props: SessionListProps) {
+  const renderer = useRenderer()
   let scrollbox: ScrollBoxRenderable | undefined
 
   createEffect(() => {
     const sessions = props.store.filteredSessions()
     const selectedId = props.store.selectedSessionId()
     if (!selectedId || !sessions.some((session) => session.id === selectedId)) return
-    queueMicrotask(() => scrollbox?.scrollChildIntoView(`session-item-${selectedId}`))
+    onCleanup(keepChildInView(renderer, scrollbox, `session-item-${selectedId}`))
   })
 
   return (
