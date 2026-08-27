@@ -1,5 +1,6 @@
 import { render } from "@opentui/solid"
 import { CodexAdapter } from "./adapters/codex/adapter"
+import { OpenCodeAdapter } from "./adapters/opencode/adapter"
 import { PiAdapter } from "./adapters/pi/adapter"
 import { createAgentRegistry } from "./adapters/registry"
 import { createAgentUseCases } from "./application/use-cases"
@@ -13,9 +14,11 @@ function optionValue(args: string[], name: string): string | undefined {
 const args = process.argv.slice(2)
 const piSessionsDir = optionValue(args, "--pi-sessions-dir")
 const codexSessionsDir = optionValue(args, "--codex-sessions-dir")
+const openCodeDataDir = optionValue(args, "--opencode-data-dir")
 const piAdapter = new PiAdapter(piSessionsDir)
 const codexAdapter = new CodexAdapter(codexSessionsDir)
-const registry = createAgentRegistry(piAdapter, codexAdapter)
+const openCodeAdapter = new OpenCodeAdapter(openCodeDataDir)
+const registry = createAgentRegistry(piAdapter, codexAdapter, openCodeAdapter)
 const activeAdapter = registry.get("pi") ?? piAdapter
 const useCases = createAgentUseCases(registry)
 

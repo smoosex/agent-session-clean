@@ -1,6 +1,6 @@
 # AGC
 
-AGC（Agent Session Clean）是一个 Pi 和 Codex session 管理器，用项目组织、查看和删除本机 session。
+AGC（Agent Session Clean）是一个 Pi、Codex 和 OpenCode session 管理器，用项目组织、查看和删除本机 session。
 
 ## 运行
 
@@ -23,7 +23,14 @@ bun run src/main.tsx --codex-sessions-dir /path/to/sessions
 AGC_CODEX_SESSIONS_DIR=/path/to/sessions bun run src/main.tsx
 ```
 
-Codex 默认读取 `~/.codex/sessions`，也会根据 `CODEX_HOME` 读取 `$CODEX_HOME/sessions`。顶部 Agent 选择器可以在 Pi 和 Codex 之间切换。
+覆盖 OpenCode 数据目录：
+
+```bash
+bun run src/main.tsx --opencode-data-dir /path/to/opencode
+AGC_OPENCODE_DATA_DIR=/path/to/opencode bun run src/main.tsx
+```
+
+Codex 默认读取 `~/.codex/sessions`，也会根据 `CODEX_HOME` 读取 `$CODEX_HOME/sessions`。OpenCode 默认读取 `~/.local/share/opencode`（可用 `OPENCODE_DATA_DIR` 或 `XDG_DATA_HOME` 覆盖）。顶部 Agent 选择器可以在 Pi、Codex 和 OpenCode 之间切换。
 
 也可以使用 `agc` 命令：
 
@@ -45,7 +52,7 @@ agc
 - `?`：帮助
 - `q`：退出
 
-AGC 不联网。删除操作会永久删除 session 文件，无法撤销；Pi 和 Codex 的扫描都只读取本地 JSONL 文件。
+AGC 不联网。删除操作会永久删除 session，无法撤销。Pi 和 Codex 扫描本地 JSONL；OpenCode 扫描本地 `opencode.db`，删除时会去掉对应数据库行和 `storage` 文件。
 
 ## 架构
 
