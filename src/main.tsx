@@ -1,4 +1,5 @@
 import { render } from "@opentui/solid"
+import { ClaudeCodeAdapter } from "./adapters/claude-code/adapter"
 import { CodexAdapter } from "./adapters/codex/adapter"
 import { OpenCodeAdapter } from "./adapters/opencode/adapter"
 import { PiAdapter } from "./adapters/pi/adapter"
@@ -15,10 +16,12 @@ const args = process.argv.slice(2)
 const piSessionsDir = optionValue(args, "--pi-sessions-dir")
 const codexSessionsDir = optionValue(args, "--codex-sessions-dir")
 const openCodeDataDir = optionValue(args, "--opencode-data-dir")
+const claudeCodeSessionsDir = optionValue(args, "--claude-code-sessions-dir")
 const piAdapter = new PiAdapter(piSessionsDir)
+const claudeCodeAdapter = new ClaudeCodeAdapter(claudeCodeSessionsDir)
 const codexAdapter = new CodexAdapter(codexSessionsDir)
 const openCodeAdapter = new OpenCodeAdapter(openCodeDataDir)
-const registry = createAgentRegistry(piAdapter, codexAdapter, openCodeAdapter)
+const registry = createAgentRegistry(piAdapter, claudeCodeAdapter, codexAdapter, openCodeAdapter)
 const activeAdapter = registry.get("pi") ?? piAdapter
 const useCases = createAgentUseCases(registry)
 
