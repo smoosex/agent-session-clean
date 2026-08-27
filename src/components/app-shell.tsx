@@ -45,6 +45,19 @@ export function AppShell(props: AppShellProps) {
     const next = Math.max(0, Math.min(items.length - 1, (current < 0 ? 0 : current) + delta))
     props.store.chooseSession(items[next]?.id)
   }
+  const jumpToEdge = (edge: "start" | "end") => {
+    if (props.store.focus() === "projects") {
+      const items = props.store.filteredProjects()
+      const item = edge === "start" ? items[0] : items[items.length - 1]
+      if (item) props.store.chooseProject(item.id)
+      return
+    }
+    if (props.store.focus() === "sessions") {
+      const items = props.store.filteredSessions()
+      const item = edge === "start" ? items[0] : items[items.length - 1]
+      if (item) props.store.chooseSession(item.id)
+    }
+  }
   const cycleFocus = (delta: number) => {
     const current = focusOrder.indexOf(props.store.focus())
     const next = (current + delta + focusOrder.length) % focusOrder.length
@@ -139,6 +152,13 @@ export function AppShell(props: AppShellProps) {
       return
     }
 
+    if (key.name === "escape") {
+      if (props.store.selectedProjectIds().size > 0 || props.store.selectedSessionIds().size > 0) {
+        key.preventDefault()
+        props.store.clearSelected()
+      }
+      return
+    }
     if (key.ctrl && key.name === "c") {
       renderer.destroy()
       return
@@ -220,6 +240,20 @@ export function AppShell(props: AppShellProps) {
       if (props.store.focus() === "sessions") {
         key.preventDefault()
         moveSession(1)
+      }
+      return
+    }
+    if (key.name === "g" && !key.shift) {
+      if (props.store.focus() === "projects" || props.store.focus() === "sessions") {
+        key.preventDefault()
+        jumpToEdge("start")
+      }
+      return
+    }
+    if (key.name === "G" || (key.name === "g" && key.shift)) {
+      if (props.store.focus() === "projects" || props.store.focus() === "sessions") {
+        key.preventDefault()
+        jumpToEdge("end")
       }
       return
     }

@@ -297,6 +297,11 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
     setSelectedSessionIds(clearSelection())
   }
 
+  function clearSelected(): void {
+    setSelectedProjectIds(clearSelection())
+    setSelectedSessionIds(clearSelection())
+  }
+
   createEffect(() => {
     const visibleProjects = filteredProjects()
     const currentProject = selectedProjectId()
@@ -362,6 +367,7 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
     toggleSession,
     selectAllVisibleSessions,
     clearSelectedSessions,
+    clearSelected,
     setFocus,
     setSearchQuery,
     setSort,
