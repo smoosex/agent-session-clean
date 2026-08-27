@@ -5,12 +5,12 @@ import { describe, expect, test } from "bun:test"
 import { PiDeleter } from "../src/adapters/pi/deleter"
 import type { SessionSummary } from "../src/domain/session"
 
-function makeSession(filePath: string, sizeBytes: number, updatedAt: string): SessionSummary {
+function makeSession(filePath: string, sizeBytes: number, updatedAt: string, id = "session:pi:one"): SessionSummary {
   return {
-    id: "session:pi:one",
+    id,
     ref: { agentId: "pi", sourceId: filePath },
     agentId: "pi",
-    sessionId: "one",
+    sessionId: id,
     projectId: "project:pi:/work/app",
     projectName: "/work/app",
     projectLocation: "/work/app",
@@ -52,6 +52,46 @@ describe("PiDeleter", () => {
     } finally {
       await rm(root, { recursive: true, force: true })
       await rm(outside, { recursive: true, force: true })
+    }
+  })
+
+  test("removes a session folder when every jsonl in it is deleted", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "agc-delete-"))
+    const folder = path.join(root, "--work-app--")
+    const first = path.join(folder, "one.jsonl")
+    const second = path.join(folder, "two.jsonl")
+    try {
+      await Bun.write(first, "one")
+      await Bun.write(second, "two")
+      const firstStats = await Bun.file(first).stat()
+      const secondStats = await Bun.file(second).stat()
+      const result = await new PiDeleter(root).deleteSessions([
+        makeSession(first, firstStats.size, firstStats.mtime.toISOString(), "session:pi:one"),
+        makeSession(second, secondStats.size, secondStats.mtime.toISOString(), "session:pi:two"),
+      ])
+      expect(result.items.every((item) => item.success)).toBe(true)
+      expect(await Bun.file(first).exists()).toBe(false)
+      expect(await Bun.file(folder).exists()).toBe(false)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  test("keeps a session folder when other jsonl files remain", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "agc-delete-"))
+    const folder = path.join(root, "--work-app--")
+    const first = path.join(folder, "one.jsonl")
+    const second = path.join(folder, "two.jsonl")
+    try {
+      await Bun.write(first, "one")
+      await Bun.write(second, "two")
+      const firstStats = await Bun.file(first).stat()
+      const result = await new PiDeleter(root).deleteSessions([makeSession(first, firstStats.size, firstStats.mtime.toISOString())])
+      expect(result.items).toEqual([{ sessionId: "session:pi:one", success: true }])
+      expect(await Bun.file(first).exists()).toBe(false)
+      expect(await Bun.file(second).exists()).toBe(true)
+    } finally {
+      await rm(root, { recursive: true, force: true })
     }
   })
 })
