@@ -6,6 +6,7 @@ export type DeleteAction = "confirm" | "cancel"
 
 type DeleteDialogProps = {
   count: number
+  projectCount?: number
   scope: DeleteScope
   action: DeleteAction
   onActionChange: (action: DeleteAction) => void
@@ -16,7 +17,11 @@ type DeleteDialogProps = {
 export function DeleteDialog(props: DeleteDialogProps) {
   const dimensions = useTerminalDimensions()
   const popupHeight = 7
-  const message = () => props.scope === "project" ? `Delete this project and all ${props.count} sessions?` : `Delete ${props.count} ${props.count === 1 ? "session" : "sessions"}?`
+  const message = () => {
+    if (props.scope !== "project") return `Delete ${props.count} ${props.count === 1 ? "session" : "sessions"}?`
+    const projectCount = props.projectCount ?? 1
+    return projectCount > 1 ? `Delete ${projectCount} projects and all ${props.count} sessions?` : `Delete this project and all ${props.count} sessions?`
+  }
   const width = () => Math.min(Math.max(message().length + 4, 36), Math.max(20, dimensions().width - 4))
   const left = () => Math.max(0, Math.floor((dimensions().width - width()) / 2))
   const top = () => Math.max(0, Math.floor((dimensions().height - popupHeight) / 2))

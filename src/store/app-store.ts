@@ -16,7 +16,7 @@ export type DeleteScope = "session" | "project"
 type AppStore = ReturnType<typeof createAppStore>
 
 function searchableSession(session: SessionSummary): string {
-  return [session.title, session.sessionId, session.firstUserMessage, session.lastUserMessage].filter(Boolean).join(" ").toLowerCase()
+  return [session.title, session.sessionId, session.ref.sourceId, session.firstUserMessage, session.lastUserMessage].filter(Boolean).join(" ").toLowerCase()
 }
 
 function sortSessions(sessions: SessionSummary[], sort: SortMode): SessionSummary[] {
@@ -57,6 +57,7 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
   const [sessions, setSessions] = createSignal<SessionSummary[]>([])
   const [selectedProjectId, setSelectedProjectId] = createSignal<string>()
   const [selectedSessionId, setSelectedSessionId] = createSignal<string>()
+  const [selectedProjectIds, setSelectedProjectIds] = createSignal<Set<string>>(new Set())
   const [selectedSessionIds, setSelectedSessionIds] = createSignal<Set<string>>(new Set())
   const [sessionDetail, setSessionDetail] = createSignal<SessionDetail>()
   const [focus, setFocus] = createSignal<FocusArea>("projects")
@@ -175,6 +176,7 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
     setScannedSources(result.scannedSources)
     setFailedSources(result.failedSources)
     setLastScanAt(new Date().toISOString())
+    setSelectedProjectIds((current) => new Set([...current].filter((id) => result.projects.some((project) => project.id === id))))
     setSelectedSessionIds((current) => new Set([...current].filter((id) => result.sessions.some((session) => session.id === id))))
     const project = pickRemaining(filteredProjects(), previousProjectId, previousProjects)
     setSelectedProjectId(project?.id)
@@ -204,6 +206,7 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
     setFailedSources(0)
     setSelectedProjectId(undefined)
     setSelectedSessionId(undefined)
+    setSelectedProjectIds(clearSelection())
     setSelectedSessionIds(clearSelection())
     setSessionDetail(undefined)
     void scan()
@@ -278,6 +281,10 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
     return deleteSessions(selected)
   }
 
+  function toggleProject(projectId: string): void {
+    setSelectedProjectIds((current) => toggleSelection(current, projectId))
+  }
+
   function toggleSession(sessionId: string): void {
     setSelectedSessionIds((current) => toggleSelection(current, sessionId))
   }
@@ -331,6 +338,7 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
     selectedSession,
     selectedProjectId,
     selectedSessionId,
+    selectedProjectIds,
     selectedSessionIds,
     sessionDetail,
     focus,
@@ -350,6 +358,7 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
     chooseProject,
     chooseSession,
     loadDetail,
+    toggleProject,
     toggleSession,
     selectAllVisibleSessions,
     clearSelectedSessions,

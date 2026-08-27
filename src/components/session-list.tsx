@@ -33,11 +33,11 @@ export function SessionList(props: SessionListProps) {
             const selected = () => props.store.selectedSessionId() === session.id
             const marked = () => props.store.selectedSessionIds().has(session.id)
             return (
-              <box id={`session-item-${session.id}`} height={3} flexDirection="row" backgroundColor={selected() || marked() ? colors.selected : colors.panel}>
-                <text width={2} paddingLeft={1} fg={marked() ? colors.warning : colors.muted}>{marked() ? "✓" : " "}</text>
+              <box id={`session-item-${session.id}`} height={3} flexDirection="row" backgroundColor={selected() ? colors.selected : colors.panel}>
+                <text width={1} fg={colors.selected}>{marked() ? "▌\n▌\n▌" : " \n \n "}</text>
                 <box flexGrow={1} flexDirection="column" paddingLeft={1} paddingRight={1}>
                   <text fg={selected() ? colors.muted : colors.text}>{session.title}</text>
-                  <text fg={colors.muted}>{formatRelativeTime(session.updatedAt)} · {formatBytes(session.sizeBytes ?? 0)} · {session.messageCount ?? 0} messages</text>
+                  <text fg={colors.muted}>{[formatRelativeTime(session.updatedAt), formatBytes(session.sizeBytes ?? 0), session.messageCount === undefined ? undefined : `${session.messageCount} messages`].filter(Boolean).join(" · ")}</text>
                   <text fg={session.warnings.length > 0 ? colors.warning : colors.muted}>{session.warnings.length > 0 ? `! ${session.warnings.length} parse warnings` : session.sessionId ?? "no session id"}</text>
                 </box>
               </box>

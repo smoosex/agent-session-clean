@@ -31,9 +31,11 @@ export function ProjectList(props: ProjectListProps) {
         <scrollbox ref={(element) => { scrollbox = element }} flexGrow={1} minHeight={0} contentOptions={{ gap: 1 }}>
           <For each={props.store.filteredProjects()}>{(project: ProjectSummary) => {
             const selected = () => props.store.selectedProjectId() === project.id
+            const marked = () => props.store.selectedProjectIds().has(project.id)
             return (
               <box id={`project-item-${project.id}`} height={3} flexDirection="row" backgroundColor={selected() ? colors.selected : colors.panel}>
-                <box flexGrow={1} flexDirection="column" paddingLeft={2} paddingRight={1}>
+                <text width={1} fg={colors.selected}>{marked() ? "▌\n▌\n▌" : " \n \n "}</text>
+                <box flexGrow={1} flexDirection="column" paddingLeft={1} paddingRight={1}>
                   <text fg={selected() ? colors.muted : colors.text}>{project.displayPath}</text>
                   <text fg={colors.muted}>{project.sessionCount} sessions · {formatBytes(project.totalSizeBytes)}</text>
                   <text fg={project.warningCount > 0 ? colors.warning : colors.muted}>{project.warningCount > 0 ? `! ${project.warningCount} warnings` : formatRelativeTime(project.updatedAt)}</text>

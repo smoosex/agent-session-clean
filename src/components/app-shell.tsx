@@ -59,13 +59,12 @@ export function AppShell(props: AppShellProps) {
   const deleteTarget = (): { ids: string[]; scope: DeleteScope } => {
     const sessions = props.store.sessions()
     if (props.store.focus() === "projects") {
-      const projectId = props.store.selectedProjectId()
-      return { ids: sessions.filter((session) => session.projectId === projectId).map((session) => session.id), scope: "project" }
+      const marked = [...props.store.selectedProjectIds()]
+      const projectIds = marked.length > 0 ? marked : props.store.selectedProjectId() ? [props.store.selectedProjectId()!] : []
+      return { ids: sessions.filter((session) => projectIds.includes(session.projectId)).map((session) => session.id), scope: "project" }
     }
-    if (props.store.focus() === "sessions") {
-      const selected = sessions.filter((session) => props.store.selectedSessionIds().has(session.id))
-      if (selected.length > 0) return { ids: selected.map((session) => session.id), scope: "session" }
-    }
+    const markedSessions = sessions.filter((session) => props.store.selectedSessionIds().has(session.id))
+    if (markedSessions.length > 0) return { ids: markedSessions.map((session) => session.id), scope: "session" }
     const current = props.store.selectedSession()
     return { ids: current ? [current.id] : [], scope: "session" }
   }
@@ -156,13 +155,21 @@ export function AppShell(props: AppShellProps) {
       requestDelete()
       return
     }
-    if (key.name === "space" || key.sequence === " ") {
-      if (props.store.focus() === "sessions") {
-        const session = props.store.selectedSession()
-        if (session) {
+    if (key.name === "space" || key.name === " " || key.sequence === " " || key.raw === " ") {
+      if (props.store.focus() === "projects") {
+        const project = props.store.selectedProject()
+        if (project) {
           key.preventDefault()
-          props.store.toggleSession(session.id)
+          key.stopPropagation()
+          props.store.toggleProject(project.id)
         }
+        return
+      }
+      const session = props.store.selectedSession()
+      if (session) {
+        key.preventDefault()
+        key.stopPropagation()
+        props.store.toggleSession(session.id)
       }
       return
     }
@@ -269,7 +276,7 @@ export function AppShell(props: AppShellProps) {
         <box position="absolute" top={0} left={0} width="100%" height="100%" backgroundColor={colors.overlay} zIndex={29} />
       </Show>
       <Show when={deleteOpen()}>
-        <DeleteDialog count={deleteTargetIds().length} scope={deleteScope()} action={deleteAction()} onActionChange={setDeleteAction} onConfirm={confirmDelete} onCancel={() => setDeleteOpen(false)} />
+        <DeleteDialog count={deleteTargetIds().length} projectCount={new Set(props.store.sessions().filter((session) => deleteTargetIds().includes(session.id)).map((session) => session.projectId)).size} scope={deleteScope()} action={deleteAction()} onActionChange={setDeleteAction} onConfirm={confirmDelete} onCancel={() => setDeleteOpen(false)} />
       </Show>
       <Show when={helpOpen()}><HelpDialog /></Show>
     </box>
