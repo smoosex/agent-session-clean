@@ -11,6 +11,7 @@ import { formatBytes } from "../utils/format"
 export type FocusArea = "agent" | "projects" | "sessions" | "detail"
 export type SortMode = "updated-desc" | "updated-asc" | "name-asc" | "size-desc"
 export type DeleteStatus = "idle" | "deleting" | "complete" | "error"
+export type DeleteScope = "session" | "project"
 
 type AppStore = ReturnType<typeof createAppStore>
 
@@ -226,22 +227,32 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
     }
   }
 
-  async function deleteSelected(): Promise<DeleteResult | undefined> {
+  async function deleteSessions(targets: readonly SessionSummary[]): Promise<DeleteResult | undefined> {
+    const currentAgentId = activeAgentId()
+    const currentAgentTargets = targets.filter((session) => session.agentId === currentAgentId && session.ref.agentId === currentAgentId)
+    if (currentAgentTargets.length === 0) return undefined
     const version = ++deleteVersion
-    const selected = sessions().filter((session) => selectedSessionIds().has(session.id))
-    if (selected.length === 0) return undefined
     deleteController?.abort()
     const controller = new AbortController()
     deleteController = controller
     setDeleteStatus("deleting")
     try {
-      const result = await services.deleteSessions(selected, { signal: controller.signal })
+      const result = await services.deleteSessions(currentAgentTargets, { signal: controller.signal })
       if (version !== deleteVersion) return result
       setLastDeleteResult(result)
       const failed = result.items.filter((item) => !item.success)
       setDeleteStatus(failed.length > 0 ? "error" : "complete")
       setSelectedSessionIds(new Set(failed.map((item) => item.sessionId)))
       await scan()
+      if (version === deleteVersion && failed.length > 0) {
+        const targetById = new Map(currentAgentTargets.map((session) => [session.id, session]))
+        setIssues((current) => [...current, ...failed.map((item) => ({
+          location: targetById.get(item.sessionId)?.ref.sourceId,
+          message: item.message ?? "Unable to delete session",
+          severity: "error" as const,
+        }))])
+        setScanStatus("error")
+      }
       return result
     } catch (error) {
       if ((error as Error).name === "AbortError" || (error as NodeJS.ErrnoException).code === "ABORT_ERR") return undefined
@@ -251,6 +262,11 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
       }
       return undefined
     }
+  }
+
+  async function deleteSelected(): Promise<DeleteResult | undefined> {
+    const selected = sessions().filter((session) => selectedSessionIds().has(session.id))
+    return deleteSessions(selected)
   }
 
   function toggleSession(sessionId: string): void {
@@ -320,6 +336,7 @@ export function createAppStore(services: AgentUseCases, initialAgentId: AgentId 
     lastScanAt,
     summary,
     scan,
+    deleteSessions,
     deleteSelected,
     chooseProject,
     chooseSession,

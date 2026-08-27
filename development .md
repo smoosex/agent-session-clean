@@ -6,15 +6,15 @@
 - 当前版本：v0.1
 - 文档状态：首版开发设计
 - 首版 Agent：Pi、Codex
-- 首版能力：只读扫描与展示
-- 暂不包含：删除、归档、恢复、Claude Code 和 Antigravity 适配器
+- 首版能力：扫描、展示和永久删除 Pi/Codex session
+- 暂不包含：归档、恢复、Claude Code 和 Antigravity 适配器
 - 技术栈：OpenTUI + SolidJS + TypeScript + Bun
 
 ## 2. 产品目标
 
 AGC 用于集中查看本机不同 Agent 产生的 session，并按照项目组织这些 session。用户可以先选择 Agent，再选择项目，最后查看该项目中的 session 以及单个 session 的详细信息。
 
-首版只实现可靠、清晰的展示能力，为后续接入 Claude Code、Codex、Antigravity 等 Agent 保留统一的适配器接口。
+首版实现可靠、清晰的展示和删除能力，为后续接入 Claude Code、Antigravity 等 Agent 保留统一的适配器接口。
 
 ### 2.1 首版目标
 
@@ -23,11 +23,10 @@ AGC 用于集中查看本机不同 Agent 产生的 session，并按照项目组�
 3. 展示选中项目下的所有 session。
 4. 展示选中 session 的详细元数据和内容摘要。
 5. 支持重新扫描、搜索、排序和键盘导航。
-6. 全程只读，不修改任何 session 文件。
+6. 支持 Space 多选，以及对当前 session、已选 session 和当前项目的永久删除。
 
 ### 2.2 非目标
 
-- 不删除任何文件。
 - 不移动、重命名或归档 session。
 - 不调用 Agent API。
 - 不上传数据，不联网，不收集遥测。
@@ -122,7 +121,7 @@ Agent  [ ● Pi ▾ ]
 2. 第一条用户消息的纯文本摘要。
 3. `Untitled session`。
 
-列表中不显示复选框，因为首版不包含删除和批量操作。选中行使用明显的背景色或左侧强调线，不使用大面积高亮，避免长列表难以阅读。
+Session 列表使用 `Space` 切换多选状态。选中行使用明显的背景色或左侧强调线，不使用大面积高亮，避免长列表难以阅读。
 
 ### 3.5 右栏：Session 详情
 
@@ -173,7 +172,7 @@ Agent  [ ● Pi ▾ ]
 | `?` | 显示帮助 |
 | `q` | 退出 |
 
-首版不绑定 `d` 删除快捷键，避免用户误以为删除功能已经可用。
+`d` 删除当前 session、已选 session 或当前项目；删除前必须二次确认，且删除不可撤销。
 
 ### 3.8 响应式布局
 
@@ -231,7 +230,7 @@ interface AgentAdapter {
 }
 ```
 
-首版实现 `PiAdapter` 和 `CodexAdapter` 的 scanner、parser。删除接口已预留但尚未启用；未来 Agent 只需实现这些统一 ports，不修改 TUI 展示模型和业务用例。
+首版实现 `PiAdapter` 和 `CodexAdapter` 的 scanner、parser、deleter。未来 Agent 只需实现这些统一 ports，不修改 TUI 展示模型和业务用例。
 
 ### 4.3 统一展示模型和状态
 
@@ -262,7 +261,7 @@ Pi 默认 session 根目录：
 2. 环境变量：`AGC_PI_SESSIONS_DIR`。
 3. 默认路径：`~/.pi/agent/sessions`。
 
-首版只读取本地文件，不调用 Pi 内部 API。
+扫描读取本地文件，不调用 Pi 内部 API；删除仅由专用 deleter 在确认后执行。
 
 ### 5.2 文件发现
 
@@ -399,20 +398,24 @@ agc/
     │   │   ├── adapter.ts
     │   │   ├── scanner.ts
     │   │   ├── parser.ts
+    │   │   ├── deleter.ts
     │   │   ├── text-summary.ts
     │   │   └── types.ts
     │   └── codex/
     │       ├── adapter.ts
     │       ├── scanner.ts
     │       ├── parser.ts
+    │       ├── deleter.ts
     │       └── types.ts
     ├── services/
     │   ├── discover-jsonl.ts
-    │   └── scan-service.ts
+    │   ├── scan-service.ts
+    │   └── delete-session-files.ts
     ├── store/
     │   └── app-store.ts
     ├── components/
     │   ├── app-shell.tsx
+    │   ├── delete-dialog.tsx
     │   ├── agent-selector.tsx
     │   ├── project-list.tsx
     │   ├── session-list.tsx
@@ -571,6 +574,12 @@ Try another project or press r to rescan.
 - 搜索结果为空时显示空状态。
 - 重新扫描后恢复已有选择。
 - 选中的 session 被外部删除后清空旧详情。
+- Space 多选和取消选择 session。
+- d 在无多选时删除当前 session。
+- d 在有多选时删除所有选中的 session。
+- d 在项目焦点下删除当前项目内的全部 session。
+- 删除失败时保留失败项并显示 issue。
+- 切换 Agent 后清空之前的多选状态。
 - 选择不支持的 Agent 时保持当前 Agent 数据不变。
 
 ### 10.4 TUI 验收测试
@@ -592,7 +601,7 @@ Try another project or press r to rescan.
 6. 选择 session 后，右栏展示其详细信息。
 7. 能处理空目录、损坏文件和缺失字段。
 8. 支持 `/` 搜索和 `r` 重新扫描。
-9. 首版不存在删除入口，也不会修改任何 session 文件。
+9. 删除前必须二次确认，删除结果支持部分失败提示。
 10. 在常见终端尺寸下布局可读、焦点明确、列表可滚动。
 
 ## 12. 开发里程碑
@@ -633,19 +642,17 @@ Try another project or press r to rescan.
 
 - 完成 parser、scanner、store 和 TUI 测试。
 - 使用真实 Pi 和 Codex session 目录进行手动验收。
-- 确认所有操作均为只读。
-- 发布 v0.1 展示版。
+- 确认扫描不会修改 session 文件。
+- 确认删除只作用于确认后的目标，并正确报告部分失败。
+- 发布 v0.1。
 
 ## 13. 后续版本预留
 
-删除能力不进入 v0.1，但数据模型需要保留以下扩展空间：
+删除能力已进入 v0.1，后续可继续扩展：
 
-- Session 多选状态。
-- 删除候选集合。
-- 删除前的二次确认。
-- 文件变化检测。
-- 永久删除结果报告。
-- 删除失败重试和部分成功状态。
+- 删除前的文件变化检测。
+- 删除失败重试。
+- 更细粒度的批量删除进度。
 - 未来可能的回收站策略。
 
 后续新增 Agent 时，应该新增对应目录：

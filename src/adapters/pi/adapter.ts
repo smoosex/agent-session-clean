@@ -3,6 +3,7 @@ import path from "node:path"
 import type { AgentInfo } from "../../domain/agent"
 import type { AgentAdapter } from "../../application/ports"
 import { normalizeProjectPath } from "../../utils/paths"
+import { PiDeleter } from "./deleter"
 import { PiParser } from "./parser"
 import { PiScanner } from "./scanner"
 
@@ -14,16 +15,18 @@ export class PiAdapter implements AgentAdapter {
     id: "pi",
     label: "Pi",
     status: "available",
-    capabilities: { canDelete: false, canBulkDelete: false },
+    capabilities: { canDelete: true, canBulkDelete: true },
   }
   readonly sessionsDir: string
   readonly parser: PiParser
   readonly scanner: PiScanner
+  readonly deleter: PiDeleter
 
   constructor(sessionsDir?: string) {
     this.sessionsDir = normalizeProjectPath(sessionsDir ?? process.env.AGC_PI_SESSIONS_DIR ?? defaultPiSessionsDir)
     this.info.detail = this.sessionsDir
     this.parser = new PiParser()
     this.scanner = new PiScanner(this.sessionsDir, this.parser)
+    this.deleter = new PiDeleter(this.sessionsDir)
   }
 }

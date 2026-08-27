@@ -12,4 +12,5 @@ export const colors = {
   error: RGBA.fromIndex(1),
   warning: RGBA.fromIndex(3),
   selected: RGBA.fromIndex(4),
+  overlay: RGBA.fromInts(0, 0, 0, 150),
 } as const

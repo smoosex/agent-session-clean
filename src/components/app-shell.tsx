@@ -1,8 +1,9 @@
 import { Show, createSignal } from "solid-js"
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
-import type { AppStore, FocusArea, SortMode } from "../store/app-store"
+import type { AppStore, DeleteScope, FocusArea, SortMode } from "../store/app-store"
 import { colors } from "../theme/tokens"
 import { AgentSelector } from "./agent-selector"
+import { DeleteDialog, type DeleteAction } from "./delete-dialog"
 import { HelpDialog } from "./help-dialog"
 import { IssuePanel } from "./issue-panel"
 import { ProjectList } from "./project-list"
@@ -24,6 +25,10 @@ export function AppShell(props: AppShellProps) {
   const [helpOpen, setHelpOpen] = createSignal(false)
   const [agentOpen, setAgentOpen] = createSignal(false)
   const [agentIndex, setAgentIndex] = createSignal(0)
+  const [deleteOpen, setDeleteOpen] = createSignal(false)
+  const [deleteTargetIds, setDeleteTargetIds] = createSignal<string[]>([])
+  const [deleteScope, setDeleteScope] = createSignal<DeleteScope>("session")
+  const [deleteAction, setDeleteAction] = createSignal<DeleteAction>("confirm")
 
   const layout = () => dimensions().width >= 120 ? "wide" : dimensions().width >= 90 ? "medium" : "narrow"
   const moveProject = (delta: number) => {
@@ -51,8 +56,57 @@ export function AppShell(props: AppShellProps) {
     const current = modes.indexOf(props.store.sort())
     props.store.setSort(modes[(current + 1) % modes.length] ?? "updated-desc")
   }
+  const deleteTarget = (): { ids: string[]; scope: DeleteScope } => {
+    const sessions = props.store.sessions()
+    if (props.store.focus() === "projects") {
+      const projectId = props.store.selectedProjectId()
+      return { ids: sessions.filter((session) => session.projectId === projectId).map((session) => session.id), scope: "project" }
+    }
+    if (props.store.focus() === "sessions") {
+      const selected = sessions.filter((session) => props.store.selectedSessionIds().has(session.id))
+      if (selected.length > 0) return { ids: selected.map((session) => session.id), scope: "session" }
+    }
+    const current = props.store.selectedSession()
+    return { ids: current ? [current.id] : [], scope: "session" }
+  }
+  const requestDelete = () => {
+    const activeAgent = props.store.agents().find((agent) => agent.id === props.store.activeAgentId())
+    if (props.store.focus() === "agent" || !activeAgent?.capabilities.canDelete || props.store.deleteStatus() === "deleting") return
+    const target = deleteTarget()
+    if (target.ids.length === 0) return
+    setDeleteTargetIds(target.ids)
+    setDeleteScope(target.scope)
+    setDeleteAction("confirm")
+    setDeleteOpen(true)
+  }
+  const confirmDelete = () => {
+    const targets = props.store.sessions().filter((session) => deleteTargetIds().includes(session.id))
+    setDeleteOpen(false)
+    void props.store.deleteSessions(targets)
+  }
 
   useKeyboard((key) => {
+    if (deleteOpen()) {
+      if (key.name === "escape") {
+        setDeleteOpen(false)
+        return
+      }
+      if (key.name === "left" || key.name === "h") {
+        key.preventDefault()
+        setDeleteAction("confirm")
+        return
+      }
+      if (key.name === "right" || key.name === "l") {
+        key.preventDefault()
+        setDeleteAction("cancel")
+        return
+      }
+      if (key.name === "return" || key.name === "enter") {
+        if (deleteAction() === "confirm") confirmDelete()
+        else setDeleteOpen(false)
+      }
+      return
+    }
     if (searchOpen()) {
       if (key.name === "escape") closeSearch()
       return
@@ -96,6 +150,20 @@ export function AppShell(props: AppShellProps) {
     }
     if (key.name === "r") {
       void props.store.scan()
+      return
+    }
+    if (key.name === "d") {
+      requestDelete()
+      return
+    }
+    if (key.name === "space" || key.sequence === " ") {
+      if (props.store.focus() === "sessions") {
+        const session = props.store.selectedSession()
+        if (session) {
+          key.preventDefault()
+          props.store.toggleSession(session.id)
+        }
+      }
       return
     }
     if (key.name === "s") {
@@ -197,6 +265,12 @@ export function AppShell(props: AppShellProps) {
         </box>
       </Show>
       <StatusBar store={props.store} />
+      <Show when={deleteOpen() || helpOpen()}>
+        <box position="absolute" top={0} left={0} width="100%" height="100%" backgroundColor={colors.overlay} zIndex={29} />
+      </Show>
+      <Show when={deleteOpen()}>
+        <DeleteDialog count={deleteTargetIds().length} scope={deleteScope()} action={deleteAction()} onActionChange={setDeleteAction} onConfirm={confirmDelete} onCancel={() => setDeleteOpen(false)} />
+      </Show>
       <Show when={helpOpen()}><HelpDialog /></Show>
     </box>
   )

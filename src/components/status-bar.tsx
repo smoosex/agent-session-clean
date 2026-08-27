@@ -17,7 +17,7 @@ export function StatusBar(props: StatusBarProps) {
     <box height={1} marginX={1} flexDirection="row" backgroundColor={colors.panel} paddingX={1}>
       <text flexGrow={1} fg={props.store.scanStatus() === "error" ? colors.error : colors.cyan}>{statusText()} · {props.store.summary()}</text>
       <Show when={props.store.searchQuery()}><text fg={colors.warning}>Search: {props.store.searchQuery()} · </text></Show>
-      <text fg={colors.muted}>↑↓/jk Navigate · 1-3 Focus · Tab Switch · / Search · r Refresh · ? Help · q Quit</text>
+      <text fg={colors.muted}>↑↓/jk Navigate · Space Select · d Delete · / Search · r Refresh · ? Help · q Quit</text>
     </box>
   )
 }
