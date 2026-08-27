@@ -48,6 +48,25 @@ describe("parsePiSessionFile", () => {
     }
   })
 
+  test("summary stops after the session header", async () => {
+    const fixture = await tempSession([
+      JSON.stringify({ type: "session", version: 3, id: "session-1", timestamp: "2026-01-01T00:00:00.000Z", cwd: "/tmp/app", title: "Named" }),
+      "not-json",
+      JSON.stringify({ type: "message", message: { role: "user", content: "Fix login" } }),
+    ].join("\n"))
+    try {
+      const parsed = await parsePiSessionFile(fixture.file, undefined, "summary")
+      expect(parsed.header?.id).toBe("session-1")
+      expect(parsed.header?.cwd).toBe("/tmp/app")
+      expect(parsed.title).toBe("Named")
+      expect(parsed.recordCount).toBe(1)
+      expect(parsed.messageCount).toBe(0)
+      expect(parsed.warnings).toEqual([])
+    } finally {
+      await rm(fixture.directory, { recursive: true, force: true })
+    }
+  })
+
   test("reports empty files", async () => {
     const fixture = await tempSession("")
     try {

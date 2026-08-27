@@ -1,11 +1,14 @@
 import { createReadStream } from "node:fs"
 import { createInterface } from "node:readline"
+import path from "node:path"
 import type { SessionParser } from "../../application/ports"
 import type { ParsedSession, SessionSource } from "../../domain/scan"
 import type { DetailField, SessionDetail, SessionSummary } from "../../domain/session"
 import { truncate } from "../../utils/truncate"
 import { messageRole, messageText, recordProviderModel, recordTitle } from "./text-summary"
 import type { PiRecord, PiSessionHeader, ParsedPiSession } from "./types"
+
+export type ParseMode = "summary" | "full"
 
 function asRecord(value: unknown): PiRecord | undefined {
   return value && typeof value === "object" && !Array.isArray(value) ? value as PiRecord : undefined
@@ -28,7 +31,7 @@ function addWarning(warnings: string[], message: string): void {
   if (!warnings.includes(message)) warnings.push(message)
 }
 
-export async function parsePiSessionFile(filePath: string, signal?: AbortSignal): Promise<ParsedPiSession> {
+export async function parsePiSessionFile(filePath: string, signal?: AbortSignal, mode: ParseMode = "full"): Promise<ParsedPiSession> {
   const result: ParsedPiSession = {
     recordCount: 0,
     messageCount: 0,
@@ -57,12 +60,17 @@ export async function parsePiSessionFile(filePath: string, signal?: AbortSignal)
         firstLine = false
         continue
       }
-      if (firstLine) {
-        result.header = asHeader(record)
-        if (!result.header) addWarning(result.warnings, "First record is not a session header")
-        if (result.header?.title || result.header?.name) result.title = result.header.title ?? result.header.name
+      const header = asHeader(record)
+      if (firstLine && !header) addWarning(result.warnings, "First record is not a session header")
+      if (header && !result.header) {
+        result.header = header
+        if (header.title || header.name) result.title = header.title ?? header.name
       }
       firstLine = false
+      if (mode === "summary") {
+        if (result.header) break
+        continue
+      }
       const role = messageRole(record)
       const text = messageText(record.message)
       if (role === "user" && text) {
@@ -101,24 +109,24 @@ function detailFields(parsed: ParsedPiSession, source: string): DetailField[] {
   return fields
 }
 
-function toParsedSession(source: SessionSource, parsed: ParsedPiSession): ParsedSession {
+function toParsedSession(source: SessionSource, parsed: ParsedPiSession, mode: ParseMode = "full"): ParsedSession {
   return {
     sessionId: parsed.header?.id,
     projectLocation: parsed.header?.cwd,
     createdAt: parsed.header?.timestamp,
-    title: parsed.title ?? parsed.header?.title ?? parsed.header?.name,
-    messageCount: parsed.messageCount,
-    firstUserMessage: parsed.firstUserMessage,
-    lastUserMessage: parsed.lastUserMessage,
-    providerModels: parsed.providerModels,
+    title: parsed.title ?? parsed.header?.title ?? parsed.header?.name ?? path.basename(source.locator),
+    messageCount: mode === "summary" ? undefined : parsed.messageCount,
+    firstUserMessage: mode === "summary" ? undefined : parsed.firstUserMessage,
+    lastUserMessage: mode === "summary" ? undefined : parsed.lastUserMessage,
+    providerModels: mode === "summary" ? [] : parsed.providerModels,
     warnings: parsed.warnings,
-    detailFields: detailFields(parsed, source.locator),
+    detailFields: mode === "summary" ? [{ label: "Source", value: source.locator }] : detailFields(parsed, source.locator),
   }
 }
 
 export class PiParser implements SessionParser {
   async parseSummary(source: SessionSource, signal?: AbortSignal): Promise<ParsedSession> {
-    return toParsedSession(source, await parsePiSessionFile(source.locator, signal))
+    return toParsedSession(source, await parsePiSessionFile(source.locator, signal, "summary"), "summary")
   }
 
   async loadDetail(session: SessionSummary, signal?: AbortSignal): Promise<SessionDetail> {

@@ -35,6 +35,27 @@ describe("parseCodexSessionFile", () => {
     }
   })
 
+  test("summary stops after session_meta", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "agc-codex-"))
+    const filePath = path.join(root, "rollout-test.jsonl")
+    try {
+      await Bun.write(filePath, [
+        JSON.stringify({ timestamp: "2026-08-26T10:00:00.000Z", type: "session_meta", payload: { id: "codex-1", timestamp: "2026-08-26T10:00:00.000Z", cwd: "/work/codex" } }),
+        "not-json",
+        JSON.stringify({ timestamp: "2026-08-26T10:00:03.000Z", type: "event_msg", payload: { type: "item_completed", item: { type: "UserMessage", content: [{ type: "Text", text: "Fix the Codex adapter" }] } } }),
+      ].join("\n"))
+      const result = await parseCodexSessionFile(filePath, undefined, "summary")
+      expect(result.sessionId).toBe("codex-1")
+      expect(result.projectPath).toBe("/work/codex")
+      expect(result.recordCount).toBe(1)
+      expect(result.messageCount).toBe(0)
+      expect(result.title).toBeUndefined()
+      expect(result.warnings).toEqual([])
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   test("keeps malformed rollout files visible with warnings", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "agc-codex-"))
     const filePath = path.join(root, "broken.jsonl")

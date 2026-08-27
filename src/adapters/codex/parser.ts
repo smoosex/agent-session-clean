@@ -1,10 +1,13 @@
 import { createReadStream } from "node:fs"
 import { createInterface } from "node:readline"
+import path from "node:path"
 import type { SessionParser } from "../../application/ports"
 import type { ParsedSession, SessionSource } from "../../domain/scan"
 import type { DetailField, SessionDetail, SessionSummary } from "../../domain/session"
 import { truncate } from "../../utils/truncate"
 import type { ParsedCodexSession } from "./types"
+
+export type ParseMode = "summary" | "full"
 
 type JsonRecord = Record<string, unknown>
 
@@ -74,7 +77,7 @@ function addProviderModel(providerModels: string[], provider: string | undefined
   if (value && !providerModels.includes(value)) providerModels.push(value)
 }
 
-export async function parseCodexSessionFile(filePath: string, signal?: AbortSignal): Promise<ParsedCodexSession> {
+export async function parseCodexSessionFile(filePath: string, signal?: AbortSignal, mode: ParseMode = "full"): Promise<ParsedCodexSession> {
   const result: ParsedCodexSession = {
     recordCount: 0,
     messageCount: 0,
@@ -116,8 +119,13 @@ export async function parseCodexSessionFile(filePath: string, signal?: AbortSign
         result.createdAt ??= field(record, payload, "timestamp")
         result.title ??= field(record, payload, "title", "name")
         provider ??= field(record, payload, "model_provider", "provider")
-        addProviderModel(result.providerModels, provider, field(record, payload, "model"))
+        if (mode === "full") addProviderModel(result.providerModels, provider, field(record, payload, "model"))
+        firstLine = false
+        if (mode === "summary") break
+        continue
       }
+      firstLine = false
+      if (mode === "summary") continue
       if (type === "turn_context") {
         const turnProvider = field(record, payload, "model_provider", "provider") ?? provider
         addProviderModel(result.providerModels, turnProvider, field(record, payload, "model", "model_name"))
@@ -130,7 +138,6 @@ export async function parseCodexSessionFile(filePath: string, signal?: AbortSign
         const message = eventMessage(payload)
         if (message) eventMessages.push(message)
       }
-      firstLine = false
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ABORT_ERR" || (error as Error).name === "AbortError") throw error
@@ -163,24 +170,24 @@ function detailFields(parsed: ParsedCodexSession, source: string): DetailField[]
   return fields
 }
 
-function toParsedSession(source: SessionSource, parsed: ParsedCodexSession): ParsedSession {
+function toParsedSession(source: SessionSource, parsed: ParsedCodexSession, mode: ParseMode = "full"): ParsedSession {
   return {
     sessionId: parsed.sessionId,
     projectLocation: parsed.projectPath,
     createdAt: parsed.createdAt,
-    title: parsed.title,
-    messageCount: parsed.messageCount,
-    firstUserMessage: parsed.firstUserMessage,
-    lastUserMessage: parsed.lastUserMessage,
-    providerModels: parsed.providerModels,
+    title: parsed.title ?? path.basename(source.locator),
+    messageCount: mode === "summary" ? undefined : parsed.messageCount,
+    firstUserMessage: mode === "summary" ? undefined : parsed.firstUserMessage,
+    lastUserMessage: mode === "summary" ? undefined : parsed.lastUserMessage,
+    providerModels: mode === "summary" ? [] : parsed.providerModels,
     warnings: parsed.warnings,
-    detailFields: detailFields(parsed, source.locator),
+    detailFields: mode === "summary" ? [{ label: "Source", value: source.locator }] : detailFields(parsed, source.locator),
   }
 }
 
 export class CodexParser implements SessionParser {
   async parseSummary(source: SessionSource, signal?: AbortSignal): Promise<ParsedSession> {
-    return toParsedSession(source, await parseCodexSessionFile(source.locator, signal))
+    return toParsedSession(source, await parseCodexSessionFile(source.locator, signal, "summary"), "summary")
   }
 
   async loadDetail(session: SessionSummary, signal?: AbortSignal): Promise<SessionDetail> {

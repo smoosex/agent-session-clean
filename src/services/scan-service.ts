@@ -89,7 +89,7 @@ export async function scanSessionFiles(rootPath: string, agentId: AgentId, agent
       createdAt,
       updatedAt,
       sizeBytes: source.sizeBytes,
-      messageCount: parsed.messageCount ?? 0,
+      messageCount: parsed.messageCount,
       firstUserMessage: parsed.firstUserMessage,
       lastUserMessage: parsed.lastUserMessage,
       providerModels: parsed.providerModels,
