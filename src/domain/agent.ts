@@ -1,4 +1,4 @@
-export type AgentId = "pi" | "claude-code" | "codex" | "antigravity" | "opencode"
+export type AgentId = "pi" | "claude-code" | "codex" | "antigravity" | "opencode" | "grok"
 export type AgentStatus = "available" | "coming-soon" | "error"
 
 export type AgentCapabilities = {

@@ -1,6 +1,6 @@
 # AGC
 
-AGC（Agent Session Clean）是一个 Pi、Claude Code、Codex 和 OpenCode session 管理器，用项目组织、查看和删除本机 session。
+AGC（Agent Session Clean）是一个 Pi、Claude Code、Codex、Grok 和 OpenCode session 管理器，用项目组织、查看和删除本机 session。
 
 ## 运行
 
@@ -37,7 +37,14 @@ bun run src/main.tsx --claude-code-sessions-dir /path/to/projects
 AGC_CLAUDE_CODE_SESSIONS_DIR=/path/to/projects bun run src/main.tsx
 ```
 
-Codex 默认读取 `~/.codex/sessions`，也会根据 `CODEX_HOME` 读取 `$CODEX_HOME/sessions`。OpenCode 默认读取 `~/.local/share/opencode`（可用 `OPENCODE_DATA_DIR` 或 `XDG_DATA_HOME` 覆盖）。Claude Code 默认读取 `~/.claude/projects`（可用 `CLAUDE_CONFIG_DIR` 覆盖配置根目录）。顶部 Agent 选择器可以在已接入的 Agent 之间切换。
+覆盖 Grok session 目录：
+
+```bash
+bun run src/main.tsx --grok-sessions-dir /path/to/sessions
+AGC_GROK_SESSIONS_DIR=/path/to/sessions bun run src/main.tsx
+```
+
+Codex 默认读取 `~/.codex/sessions`，也会根据 `CODEX_HOME` 读取 `$CODEX_HOME/sessions`。OpenCode 默认读取 `~/.local/share/opencode`（可用 `OPENCODE_DATA_DIR` 或 `XDG_DATA_HOME` 覆盖）。Claude Code 默认读取 `~/.claude/projects`（可用 `CLAUDE_CONFIG_DIR` 覆盖配置根目录）。Grok 默认读取 `~/.grok/sessions`（可用 `GROK_HOME` 覆盖配置根目录）。顶部 Agent 选择器可以在已接入的 Agent 之间切换。
 
 也可以使用 `agc` 命令：
 
@@ -59,7 +66,7 @@ agc
 - `?`：帮助
 - `q`：退出
 
-AGC 不联网。删除操作会永久删除 session，无法撤销。Pi、Claude Code 和 Codex 扫描本地 JSONL；OpenCode 扫描本地 `opencode.db`，删除时会去掉对应数据库行和 `storage` 文件。
+AGC 不联网。删除操作会永久删除 session，无法撤销。Pi、Claude Code 和 Codex 扫描本地 JSONL；Grok 扫描 `summary.json` 并删除整个 session 目录；OpenCode 扫描本地 `opencode.db`，删除时会去掉对应数据库行和 `storage` 文件。
 
 ## 架构
 

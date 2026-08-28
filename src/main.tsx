@@ -1,6 +1,7 @@
 import { render } from "@opentui/solid"
 import { ClaudeCodeAdapter } from "./adapters/claude-code/adapter"
 import { CodexAdapter } from "./adapters/codex/adapter"
+import { GrokAdapter } from "./adapters/grok/adapter"
 import { OpenCodeAdapter } from "./adapters/opencode/adapter"
 import { PiAdapter } from "./adapters/pi/adapter"
 import { createAgentRegistry } from "./adapters/registry"
@@ -17,11 +18,13 @@ const piSessionsDir = optionValue(args, "--pi-sessions-dir")
 const codexSessionsDir = optionValue(args, "--codex-sessions-dir")
 const openCodeDataDir = optionValue(args, "--opencode-data-dir")
 const claudeCodeSessionsDir = optionValue(args, "--claude-code-sessions-dir")
+const grokSessionsDir = optionValue(args, "--grok-sessions-dir")
 const piAdapter = new PiAdapter(piSessionsDir)
 const claudeCodeAdapter = new ClaudeCodeAdapter(claudeCodeSessionsDir)
 const codexAdapter = new CodexAdapter(codexSessionsDir)
+const grokAdapter = new GrokAdapter(grokSessionsDir)
 const openCodeAdapter = new OpenCodeAdapter(openCodeDataDir)
-const registry = createAgentRegistry(piAdapter, claudeCodeAdapter, codexAdapter, openCodeAdapter)
+const registry = createAgentRegistry(piAdapter, claudeCodeAdapter, codexAdapter, grokAdapter, openCodeAdapter)
 const activeAdapter = registry.get("pi") ?? piAdapter
 const useCases = createAgentUseCases(registry)
 
