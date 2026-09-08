@@ -1,6 +1,6 @@
 {
   "name": "@smoose/agc",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Agent session manager for Pi, Claude Code, Antigravity, Codex, Grok, and OpenCode",
   "type": "module",
   "bin": {

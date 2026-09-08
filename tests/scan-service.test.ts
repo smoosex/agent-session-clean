@@ -44,7 +44,7 @@ describe("PiScanner", () => {
     }
   })
 
-  test("keeps malformed and non-jsonl files in scan issues", async () => {
+  test("keeps malformed files in scan issues and ignores non-jsonl files", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "agc-scan-"))
     try {
       await Bun.write(path.join(root, "broken.jsonl"), "broken")
@@ -53,7 +53,7 @@ describe("PiScanner", () => {
       expect(result.scannedSources).toBe(1)
       expect(result.failedSources).toBe(1)
       expect(result.issues.some((issue) => issue.message.includes("Invalid JSON"))).toBe(true)
-      expect(result.issues.some((issue) => issue.message === "Skipped non-JSONL file")).toBe(true)
+      expect(result.issues.some((issue) => issue.message === "Skipped non-JSONL file")).toBe(false)
     } finally {
       await rm(root, { recursive: true, force: true })
     }

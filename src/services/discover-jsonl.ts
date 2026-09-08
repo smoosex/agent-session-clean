@@ -37,22 +37,13 @@ export async function discoverJsonlFiles(rootPath: string, agentLabel: string, s
     for (const entry of entries) {
       if (signal?.aborted) throw new DOMException("Scan aborted", "AbortError")
       const entryPath = path.join(directory, entry.name)
-      if (entry.isSymbolicLink()) {
-        issues.push({ location: entryPath, message: "Skipped symbolic link", severity: "warning" })
-        continue
-      }
+      if (entry.isSymbolicLink()) continue
       if (entry.isDirectory()) {
         await visit(entryPath)
         continue
       }
-      if (!entry.isFile()) {
-        issues.push({ location: entryPath, message: "Skipped non-regular file", severity: "warning" })
-        continue
-      }
-      if (path.extname(entry.name).toLowerCase() !== ".jsonl") {
-        issues.push({ location: entryPath, message: "Skipped non-JSONL file", severity: "warning" })
-        continue
-      }
+      if (!entry.isFile()) continue
+      if (path.extname(entry.name).toLowerCase() !== ".jsonl") continue
       files.push(entryPath)
     }
   }
