@@ -1,9 +1,24 @@
 import { Database } from "bun:sqlite"
 import { lstat } from "node:fs/promises"
+import { pathToFileURL } from "node:url"
+
+async function exists(filePath: string): Promise<boolean> {
+  try {
+    await lstat(filePath)
+    return true
+  } catch {
+    return false
+  }
+}
 
 export async function openAntigravityDb(dbPath: string, readonly: boolean): Promise<Database> {
   await lstat(dbPath)
-  const db = readonly ? new Database(dbPath, { readonly: true, create: false }) : new Database(dbPath)
+  let databasePath = dbPath
+  if (readonly) {
+    const [hasWal, hasShm] = await Promise.all([exists(`${dbPath}-wal`), exists(`${dbPath}-shm`)])
+    if (!hasWal && !hasShm) databasePath = `${pathToFileURL(dbPath).href}?immutable=1`
+  }
+  const db = readonly ? new Database(databasePath, { readonly: true, create: false }) : new Database(databasePath)
   db.run("PRAGMA busy_timeout = 3000")
   return db
 }

@@ -18,6 +18,7 @@ async function makeAntigravityData(): Promise<{ root: string; conversationPath: 
   conversation.run("CREATE TABLE trajectory_meta (trajectory_id TEXT PRIMARY KEY)")
   conversation.close()
   const summaries = new Database(path.join(root, "conversation_summaries.db"))
+  summaries.run("PRAGMA journal_mode = WAL")
   summaries.run(`CREATE TABLE conversation_summaries (
     conversation_id TEXT PRIMARY KEY,
     title TEXT NOT NULL DEFAULT "",
@@ -62,6 +63,21 @@ describe("AntigravityAdapter", () => {
       const detail = await adapter.parser.loadDetail(result.sessions[0]!)
       expect(detail.firstUserMessage).toBe("hello")
       expect(detail.lastUserMessage).toBe("again")
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true })
+    }
+  })
+
+  test("reads WAL summaries without sidecar files", async () => {
+    const fixture = await makeAntigravityData()
+    try {
+      const summaryPath = path.join(fixture.root, "conversation_summaries.db")
+      await rm(`${summaryPath}-wal`, { force: true })
+      await rm(`${summaryPath}-shm`, { force: true })
+      const adapter = new AntigravityAdapter(fixture.root)
+      const result = await adapter.scanner.scan()
+      expect(result.issues).toHaveLength(0)
+      expect(result.sessions).toHaveLength(1)
     } finally {
       await rm(fixture.root, { recursive: true, force: true })
     }
