@@ -1,10 +1,10 @@
 {
-  "name": "@smoose/agc",
-  "version": "0.0.2",
+  "name": "@smoose/asc",
+  "version": "0.0.1",
   "description": "Agent session manager for Pi, Claude Code, Antigravity, Codex, Grok, and OpenCode",
   "type": "module",
   "bin": {
-    "agc": "bin/agc.js"
+    "asc": "bin/asc.js"
   },
   "files": [
     "bin",
@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "dev": "bun run src/main.tsx",
-    "start": "bun run bin/agc.js",
+    "start": "bun run bin/asc.js",
     "compile": "bun run scripts/compile.ts",
     "compile:all": "bun run scripts/compile.ts --all",
     "build:package": "bun run scripts/build-package.ts",

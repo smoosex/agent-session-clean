@@ -26,7 +26,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   readonly deleter: ClaudeCodeDeleter
 
   constructor(sessionsDir?: string) {
-    this.sessionsDir = normalizeProjectPath(sessionsDir ?? process.env.AGC_CLAUDE_CODE_SESSIONS_DIR ?? defaultClaudeCodeSessionsDir())
+    this.sessionsDir = normalizeProjectPath(sessionsDir ?? process.env.ASC_CLAUDE_CODE_SESSIONS_DIR ?? defaultClaudeCodeSessionsDir())
     this.info.detail = this.sessionsDir
     this.parser = new ClaudeCodeParser()
     this.scanner = new ClaudeCodeScanner(this.sessionsDir, this.parser)

@@ -3,7 +3,7 @@ import path from "node:path"
 import { normalizeProjectPath } from "../../utils/paths"
 
 export function defaultAntigravityDataDir(): string {
-  if (process.env.AGC_ANTIGRAVITY_DATA_DIR) return normalizeProjectPath(process.env.AGC_ANTIGRAVITY_DATA_DIR)
+  if (process.env.ASC_ANTIGRAVITY_DATA_DIR) return normalizeProjectPath(process.env.ASC_ANTIGRAVITY_DATA_DIR)
   const geminiHome = process.env.GEMINI_HOME || path.join(os.homedir(), ".gemini")
   return path.join(geminiHome, "antigravity-cli")
 }

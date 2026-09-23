@@ -25,7 +25,7 @@ export class CodexAdapter implements AgentAdapter {
 
   constructor(sessionsDir?: string) {
     const defaultDir = process.env.CODEX_HOME ? path.join(process.env.CODEX_HOME, "sessions") : defaultCodexSessionsDir
-    this.sessionsDir = normalizeProjectPath(sessionsDir ?? process.env.AGC_CODEX_SESSIONS_DIR ?? defaultDir)
+    this.sessionsDir = normalizeProjectPath(sessionsDir ?? process.env.ASC_CODEX_SESSIONS_DIR ?? defaultDir)
     this.info.detail = this.sessionsDir
     this.parser = new CodexParser()
     this.scanner = new CodexScanner(this.sessionsDir, this.parser)

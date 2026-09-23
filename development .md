@@ -1,8 +1,8 @@
-# AGC（Agent Session Clean）首版开发文档
+# ASC（Agent Session Clean）首版开发文档
 
 ## 1. 文档信息
 
-- 产品名称：AGC（Agent Session Clean）
+- 产品名称：ASC（Agent Session Clean）
 - 当前版本：v0.1
 - 文档状态：首版开发设计
 - 首版 Agent：Pi、Codex
@@ -12,7 +12,7 @@
 
 ## 2. 产品目标
 
-AGC 用于集中查看本机不同 Agent 产生的 session，并按照项目组织这些 session。用户可以先选择 Agent，再选择项目，最后查看该项目中的 session 以及单个 session 的详细信息。
+ASC 用于集中查看本机不同 Agent 产生的 session，并按照项目组织这些 session。用户可以先选择 Agent，再选择项目，最后查看该项目中的 session 以及单个 session 的详细信息。
 
 首版实现可靠、清晰的展示和删除能力，为后续接入 Claude Code、Antigravity 等 Agent 保留统一的适配器接口。
 
@@ -39,7 +39,7 @@ AGC 用于集中查看本机不同 Agent 产生的 session，并按照项目组�
 主界面采用单页三栏布局。顶部固定 Agent 选择器，下面依次展示项目、session 和详情。
 
 ```text
-┌─ AGC · Agent Session Clean ──────────────────────────────────────────────┐
+┌─ ASC · Agent Session Clean ──────────────────────────────────────────────┐
 │ Agent  [ ● Pi ▾ ]   ~/.pi/agent/sessions       Scan complete · 184 sessions│
 ├───────────────────┬──────────────────────────────┬────────────────────────┤
 │ Projects          │ Sessions                     │ Session details         │
@@ -258,7 +258,7 @@ Pi 默认 session 根目录：
 支持以下覆盖方式，优先级从高到低：
 
 1. CLI 参数：`--pi-sessions-dir <path>`。
-2. 环境变量：`AGC_PI_SESSIONS_DIR`。
+2. 环境变量：`ASC_PI_SESSIONS_DIR`。
 3. 默认路径：`~/.pi/agent/sessions`。
 
 扫描读取本地文件，不调用 Pi 内部 API；删除仅由专用 deleter 在确认后执行。
@@ -359,7 +359,7 @@ Codex 默认 session 根目录：
 ~/.codex/sessions
 ```
 
-如果设置了 `CODEX_HOME`，则使用 `$CODEX_HOME/sessions`。也支持 CLI 参数 `--codex-sessions-dir` 和环境变量 `AGC_CODEX_SESSIONS_DIR` 覆盖路径。
+如果设置了 `CODEX_HOME`，则使用 `$CODEX_HOME/sessions`。也支持 CLI 参数 `--codex-sessions-dir` 和环境变量 `ASC_CODEX_SESSIONS_DIR` 覆盖路径。
 
 Codex session 是按日期递归存储的 rollout JSONL 文件。首条 `session_meta` 记录提供 session ID、创建时间和 cwd；`turn_context` 提供模型信息；`event_msg` 和 `response_item` 提供消息摘要。扫描只读取 JSONL，不修改 Codex 的 SQLite 索引或其他本地状态。
 
@@ -368,13 +368,13 @@ Codex session 是按日期递归存储的 rollout JSONL 文件。首条 `session
 首版项目建议采用以下结构：
 
 ```text
-agc/
+asc/
 ├── package.json
 ├── tsconfig.json
 ├── bunfig.toml
 ├── README.md
 ├── docs/
-│   └── AGC-首版开发文档.md
+│   └── ASC-首版开发文档.md
 └── src/
     ├── main.tsx
     ├── app.tsx
@@ -506,7 +506,7 @@ agc/
 ```text
 No Pi sessions found
 
-AGC looked in:
+ASC looked in:
 ~/.pi/agent/sessions
 
 Create a Pi session or use --pi-sessions-dir to choose another directory.
@@ -593,9 +593,9 @@ Try another project or press r to rescan.
 
 ## 11. 首版验收标准
 
-1. 运行 `agc` 后可以进入 TUI。
+1. 运行 `asc` 后可以进入 TUI。
 2. 顶部存在 Agent 选择器，Pi 和 Codex 可用，其他 Agent 明确显示为未支持。
-3. AGC 可以从默认目录读取 Pi 和 Codex session。
+3. ASC 可以从默认目录读取 Pi 和 Codex session。
 4. 左栏展示所有已识别项目及 session 数量。
 5. 选择项目后，中栏只展示该项目的 session。
 6. 选择 session 后，右栏展示其详细信息。
@@ -670,7 +670,7 @@ src/adapters/antigravity/
 以下事项不阻塞 v0.1 的界面和 Pi 适配器开发，但在实现前需要最终确定：
 
 1. 首版是否只支持 macOS/Linux，还是同时支持 Windows。
-2. CLI 命令是否正式使用 `agc`。
+2. CLI 命令是否正式使用 `asc`。
 3. session 标题是否允许直接使用第一条用户消息摘要。
 4. 详情面板是否需要支持复制 session 路径。
 5. 默认是否显示解析后的完整消息数量，还是只显示可快速获取的记录数量。

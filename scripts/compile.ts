@@ -10,14 +10,14 @@ type ReleaseTarget = {
 }
 
 const targets: ReleaseTarget[] = [
-  { bunTarget: "bun-darwin-arm64", name: "agc-darwin-arm64" },
-  { bunTarget: "bun-darwin-x64", name: "agc-darwin-x64" },
-  { bunTarget: "bun-linux-x64", name: "agc-linux-x64", libc: "glibc" },
-  { bunTarget: "bun-linux-arm64", name: "agc-linux-arm64", libc: "glibc" },
-  { bunTarget: "bun-linux-x64-musl", name: "agc-linux-x64-musl", libc: "musl" },
-  { bunTarget: "bun-linux-arm64-musl", name: "agc-linux-arm64-musl", libc: "musl" },
-  { bunTarget: "bun-windows-x64", name: "agc-windows-x64.exe" },
-  { bunTarget: "bun-windows-arm64", name: "agc-windows-arm64.exe" },
+  { bunTarget: "bun-darwin-arm64", name: "asc-darwin-arm64" },
+  { bunTarget: "bun-darwin-x64", name: "asc-darwin-x64" },
+  { bunTarget: "bun-linux-x64", name: "asc-linux-x64", libc: "glibc" },
+  { bunTarget: "bun-linux-arm64", name: "asc-linux-arm64", libc: "glibc" },
+  { bunTarget: "bun-linux-x64-musl", name: "asc-linux-x64-musl", libc: "musl" },
+  { bunTarget: "bun-linux-arm64-musl", name: "asc-linux-arm64-musl", libc: "musl" },
+  { bunTarget: "bun-windows-x64", name: "asc-windows-x64.exe" },
+  { bunTarget: "bun-windows-arm64", name: "asc-windows-arm64.exe" },
 ]
 
 function hostTarget(): ReleaseTarget {
@@ -25,7 +25,7 @@ function hostTarget(): ReleaseTarget {
   if (!arch) throw new Error(`Unsupported architecture: ${process.arch}`)
   if (process.platform === "darwin") return targets.find((target) => target.bunTarget === `bun-darwin-${arch}`) ?? fail(arch)
   if (process.platform === "linux") return targets.find((target) => target.bunTarget === `bun-linux-${arch}`) ?? fail(arch)
-  if (process.platform === "win32") return targets.find((target) => target.name.startsWith(`agc-windows-${arch}`)) ?? fail(arch)
+  if (process.platform === "win32") return targets.find((target) => target.name.startsWith(`asc-windows-${arch}`)) ?? fail(arch)
   throw new Error(`Unsupported platform: ${process.platform}`)
 }
 

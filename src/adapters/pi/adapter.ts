@@ -23,7 +23,7 @@ export class PiAdapter implements AgentAdapter {
   readonly deleter: PiDeleter
 
   constructor(sessionsDir?: string) {
-    this.sessionsDir = normalizeProjectPath(sessionsDir ?? process.env.AGC_PI_SESSIONS_DIR ?? defaultPiSessionsDir)
+    this.sessionsDir = normalizeProjectPath(sessionsDir ?? process.env.ASC_PI_SESSIONS_DIR ?? defaultPiSessionsDir)
     this.info.detail = this.sessionsDir
     this.parser = new PiParser()
     this.scanner = new PiScanner(this.sessionsDir, this.parser)

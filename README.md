@@ -1,20 +1,20 @@
-# AGC
+# ASC
 
-AGC（Agent Session Clean）是一个 Pi、Claude Code、Antigravity、Codex、Grok 和 OpenCode session 管理器，用项目组织、查看和删除本机 session。
+ASC（Agent Session Clean）是一个 Pi、Claude Code、Antigravity、Codex、Grok 和 OpenCode session 管理器，用项目组织、查看和删除本机 session。
 
 ## 安装
 
-AGC 以 npm 包发布，运行需要 Bun 1.3.0 或更高版本：
+ASC 以 npm 包发布，运行需要 Bun 1.3.0 或更高版本：
 
 ```bash
-bun add --global @smoose/agc
-agc
+bun add --global @smoose/asc
+asc
 ```
 
 也可以使用 npm 安装：
 
 ```bash
-npm install --global @smoose/agc
+npm install --global @smoose/asc
 ```
 
 ## 开发运行
@@ -28,58 +28,58 @@ bun run dev
 
 ```bash
 bun run compile
-./dist/agc-<os>-<arch>
+./dist/asc-<os>-<arch>
 ```
 
 覆盖 Pi session 目录：
 
 ```bash
 bun run src/main.tsx --pi-sessions-dir /path/to/sessions
-AGC_PI_SESSIONS_DIR=/path/to/sessions bun run src/main.tsx
+ASC_PI_SESSIONS_DIR=/path/to/sessions bun run src/main.tsx
 ```
 
 覆盖 Codex rollout 目录：
 
 ```bash
 bun run src/main.tsx --codex-sessions-dir /path/to/sessions
-AGC_CODEX_SESSIONS_DIR=/path/to/sessions bun run src/main.tsx
+ASC_CODEX_SESSIONS_DIR=/path/to/sessions bun run src/main.tsx
 ```
 
 覆盖 OpenCode 数据目录：
 
 ```bash
 bun run src/main.tsx --opencode-data-dir /path/to/opencode
-AGC_OPENCODE_DATA_DIR=/path/to/opencode bun run src/main.tsx
+ASC_OPENCODE_DATA_DIR=/path/to/opencode bun run src/main.tsx
 ```
 
 覆盖 Claude Code session 目录：
 
 ```bash
 bun run src/main.tsx --claude-code-sessions-dir /path/to/projects
-AGC_CLAUDE_CODE_SESSIONS_DIR=/path/to/projects bun run src/main.tsx
+ASC_CLAUDE_CODE_SESSIONS_DIR=/path/to/projects bun run src/main.tsx
 ```
 
 覆盖 Antigravity 数据目录：
 
 ```bash
 bun run src/main.tsx --antigravity-data-dir /path/to/antigravity-cli
-AGC_ANTIGRAVITY_DATA_DIR=/path/to/antigravity-cli bun run src/main.tsx
+ASC_ANTIGRAVITY_DATA_DIR=/path/to/antigravity-cli bun run src/main.tsx
 ```
 
 覆盖 Grok session 目录：
 
 ```bash
 bun run src/main.tsx --grok-sessions-dir /path/to/sessions
-AGC_GROK_SESSIONS_DIR=/path/to/sessions bun run src/main.tsx
+ASC_GROK_SESSIONS_DIR=/path/to/sessions bun run src/main.tsx
 ```
 
 Codex 默认读取 `~/.codex/sessions`，也会根据 `CODEX_HOME` 读取 `$CODEX_HOME/sessions`。OpenCode 默认读取 `~/.local/share/opencode`（可用 `OPENCODE_DATA_DIR` 或 `XDG_DATA_HOME` 覆盖）。Claude Code 默认读取 `~/.claude/projects`（可用 `CLAUDE_CONFIG_DIR` 覆盖配置根目录）。Antigravity 默认读取 `~/.gemini/antigravity-cli`（可用 `GEMINI_HOME` 覆盖配置根目录）。Grok 默认读取 `~/.grok/sessions`（可用 `GROK_HOME` 覆盖配置根目录）。顶部 Agent 选择器可以在已接入的 Agent 之间切换。
 
-本地开发也可以使用 `agc` 命令：
+本地开发也可以使用 `asc` 命令：
 
 ```bash
 bun link
-agc
+asc
 ```
 
 ## 快捷键
@@ -95,7 +95,7 @@ agc
 - `?`：帮助
 - `q`：退出
 
-AGC 不联网。删除操作会永久删除 session，无法撤销。Pi、Claude Code 和 Codex 扫描本地 JSONL；Grok 扫描 `summary.json` 并删除整个 session 目录；Antigravity 扫描 `conversation_summaries.db` 并删除对应 conversation 文件；OpenCode 扫描本地 `opencode.db`，删除时会去掉对应数据库行和 `storage` 文件。
+ASC 不联网。删除操作会永久删除 session，无法撤销。Pi、Claude Code 和 Codex 扫描本地 JSONL；Grok 扫描 `summary.json` 并删除整个 session 目录；Antigravity 扫描 `conversation_summaries.db` 并删除对应 conversation 文件；OpenCode 扫描本地 `opencode.db`，删除时会去掉对应数据库行和 `storage` 文件。
 
 发布新版本时，先更新 `package.json` 的版本号，再创建并推送 `v*` tag。GitHub Actions 会运行检查并使用 `NPM_TOKEN` 发布到 npm。
 

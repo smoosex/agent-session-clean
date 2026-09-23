@@ -26,7 +26,7 @@ export class GrokAdapter implements AgentAdapter {
   readonly deleter: GrokDeleter
 
   constructor(sessionsDir?: string) {
-    this.sessionsDir = normalizeProjectPath(sessionsDir ?? process.env.AGC_GROK_SESSIONS_DIR ?? defaultGrokSessionsDir())
+    this.sessionsDir = normalizeProjectPath(sessionsDir ?? process.env.ASC_GROK_SESSIONS_DIR ?? defaultGrokSessionsDir())
     this.info.detail = this.sessionsDir
     this.parser = new GrokParser()
     this.scanner = new GrokScanner(this.sessionsDir, this.parser)

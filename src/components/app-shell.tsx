@@ -276,7 +276,7 @@ export function AppShell(props: AppShellProps) {
     <box width="100%" height="100%" flexDirection="column" backgroundColor={colors.background} position="relative" overflow="hidden">
       <box height={searchOpen() ? 4 : 3} marginX={1} flexDirection="column" paddingX={1} backgroundColor={colors.panel} border borderStyle="rounded" borderColor={props.store.focus() === "agent" ? colors.accent : colors.border} position="relative" overflow="visible" zIndex={agentOpen() ? 100 : 0}>
         <box height={1} flexDirection="row" alignItems="center">
-          <text width={31} fg={colors.text} attributes={1}>AGC · Agent Session Clean</text>
+          <text width={31} fg={colors.text} attributes={1}>ASC · Agent Session Clean</text>
           <AgentSelector store={props.store} open={agentOpen()} selectedIndex={agentIndex()} />
           <text flexGrow={1} fg={colors.muted}>  {props.store.rootPath()}</text>
           <Show when={!searchOpen()}><text fg={colors.cyan}>{props.store.scanStatus() === "scanning" ? "Scanning…" : props.store.summary()}</text></Show>
